@@ -476,6 +476,24 @@ export const SECTIONS: SectionConfig[] = [
     },
   },
   {
+    id: 'form-8995',
+    title: 'QBI Deduction (Form 8995)',
+    subtitle: '§199A qualified business income deduction — simplified method',
+    icon: 'mdi-domain',
+    route: '/section/form-8995',
+    stepCount: 1,
+    progress: (r) => {
+      const f = r.form8995;
+      if (!f) return 0;
+      return (f.activities?.length ?? 0) > 0 ||
+        f.reitPtpDividends > 0 ||
+        f.priorYearQbiLossCarry > 0 ||
+        f.priorYearReitPtpLossCarry > 0
+        ? 1
+        : 0;
+    },
+  },
+  {
     id: 'deductions',
     title: 'Deductions',
     subtitle: 'Standard or itemized (Schedule A)',

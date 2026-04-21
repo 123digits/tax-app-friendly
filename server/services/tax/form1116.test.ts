@@ -222,4 +222,131 @@ describe('computeForm1116', () => {
     expect(r.perBasket[0].allowedCredit).toBe(0);
     expect(r.total).toBe(0);
   });
+
+  // ----- §904(d)(2)(F) High-Tax Kickout -----
+
+  it('HTKO: passive basket taxed above top US rate is kicked to general', () => {
+    // passive: fti 10_000, foreignTaxPaid 4_500 → effective 45% > 37% → HTKO.
+    // The basket moves into the general category for limitation purposes.
+    // Limitation = 20_000 × 10_000/100_000 = 2_000. Paid 4_500 → allowed 2_000.
+    const r = computeForm1116(
+      [
+        b({
+          id: '1',
+          category: 'passive',
+          foreignGrossIncome: 10_000,
+          foreignTaxPaid: 4_500,
+        }),
+      ],
+      20_000,
+      100_000,
+      0.37,
+    );
+    expect(r.htkoApplied).toBe(true);
+    expect(r.perBasket).toHaveLength(1);
+    expect(r.perBasket[0].category).toBe('general');
+    expect(r.perBasket[0].foreignTaxableIncome).toBe(10_000);
+    expect(r.perBasket[0].foreignTaxPaid).toBe(4_500);
+    expect(r.perBasket[0].limitation).toBe(2_000);
+    expect(r.perBasket[0].allowedCredit).toBe(2_000);
+    expect(r.perBasket[0].htkoReceived).toBe(4_500);
+    expect(r.total).toBe(2_000);
+  });
+
+  it('HTKO: passive basket taxed at/below top US rate stays in passive', () => {
+    // passive: fti 10_000, paid 3_000 → 30% ≤ 37% → stays passive.
+    const r = computeForm1116(
+      [
+        b({
+          id: '1',
+          category: 'passive',
+          foreignGrossIncome: 10_000,
+          foreignTaxPaid: 3_000,
+        }),
+      ],
+      20_000,
+      100_000,
+      0.37,
+    );
+    expect(r.htkoApplied).toBe(false);
+    expect(r.perBasket[0].category).toBe('passive');
+    expect(r.perBasket[0].htkoReceived).toBe(0);
+    expect(r.perBasket[0].htkoRemoved).toBe(0);
+  });
+
+  it('HTKO: mixed — high-taxed passive kicks out, low-taxed passive stays', () => {
+    // Two passive rows:
+    //   low:  fti 5_000,  paid 500  → 10% → stays passive
+    //   high: fti 8_000,  paid 4_000 → 50% → HTKO → general
+    // Passive bucket: fti 5_000, paid 500, limitation 20k×5/100=1_000, credit 500.
+    // General bucket: fti 8_000, paid 4_000, limitation 20k×8/100=1_600, credit 1_600.
+    // Total credit = 500 + 1_600 = 2_100.
+    const r = computeForm1116(
+      [
+        b({ id: '1', category: 'passive', foreignGrossIncome: 5_000, foreignTaxPaid: 500 }),
+        b({ id: '2', category: 'passive', foreignGrossIncome: 8_000, foreignTaxPaid: 4_000 }),
+      ],
+      20_000,
+      100_000,
+      0.37,
+    );
+    expect(r.htkoApplied).toBe(true);
+    expect(r.perBasket).toHaveLength(2);
+
+    const passive = r.perBasket.find((x) => x.category === 'passive')!;
+    const general = r.perBasket.find((x) => x.category === 'general')!;
+
+    expect(passive.foreignTaxableIncome).toBe(5_000);
+    expect(passive.foreignTaxPaid).toBe(500);
+    expect(passive.allowedCredit).toBe(500);
+    expect(passive.htkoRemoved).toBe(4_000);
+
+    expect(general.foreignTaxableIncome).toBe(8_000);
+    expect(general.foreignTaxPaid).toBe(4_000);
+    expect(general.limitation).toBe(1_600);
+    expect(general.allowedCredit).toBe(1_600);
+    expect(general.htkoReceived).toBe(4_000);
+
+    expect(r.total).toBe(2_100);
+  });
+
+  it('HTKO: basket with zero FTI is not HTKO-tested (avoids div-by-zero)', () => {
+    // fti = max(0, 0 − 0) = 0; we skip the HTKO rate test entirely and
+    // leave the row in its original category. With no income and no tax,
+    // the row still appears because it's the only passive entry (but both
+    // foreignGross and foreignTaxPaid are zero so it's filtered out).
+    const r = computeForm1116(
+      [
+        b({ id: '1', category: 'passive', foreignGrossIncome: 0, foreignTaxPaid: 0 }),
+      ],
+      20_000,
+      100_000,
+    );
+    expect(r.htkoApplied).toBe(false);
+    expect(r.perBasket).toEqual([]);
+    expect(r.total).toBe(0);
+  });
+
+  it('HTKO: default top rate = 37% when no rate passed', () => {
+    // fti 10_000, paid 3_800 → 38% > 37% default → HTKO
+    const r = computeForm1116(
+      [b({ id: '1', category: 'passive', foreignGrossIncome: 10_000, foreignTaxPaid: 3_800 })],
+      20_000,
+      100_000,
+    );
+    expect(r.htkoApplied).toBe(true);
+    expect(r.perBasket[0].category).toBe('general');
+  });
+
+  it('HTKO: custom top rate (e.g. 39.6% historical) shifts the threshold', () => {
+    // fti 10_000, paid 3_800 → 38% < 39.6% → NO HTKO
+    const r = computeForm1116(
+      [b({ id: '1', category: 'passive', foreignGrossIncome: 10_000, foreignTaxPaid: 3_800 })],
+      20_000,
+      100_000,
+      0.396,
+    );
+    expect(r.htkoApplied).toBe(false);
+    expect(r.perBasket[0].category).toBe('passive');
+  });
 });

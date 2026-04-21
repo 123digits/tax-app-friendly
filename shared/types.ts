@@ -1377,6 +1377,14 @@ export interface Form2555 {
   housingExpenses: number;           // reasonable foreign housing expenses paid
   isBonaFideResident: boolean;       // qualifies under bona-fide residence test
   usesPhysicalPresence: boolean;     // qualifies under physical-presence test
+  /**
+   * §911(c)(2)(B) location-adjusted housing cap (full-year dollar amount,
+   * pre-proration). Taken from the annual IRS notice (e.g. Notice 2024-43
+   * for TY2024: $136,500 for Hong Kong, $114,300 for London, etc.). When
+   * set, overrides the default 30%-of-exclusion cap. When null/undefined,
+   * the default cap applies.
+   */
+  locationAdjustedHousingCap?: number | null;
 }
 
 // Schedule H — Household Employment Taxes. Employer-portion SS + Medicare
@@ -1535,6 +1543,13 @@ export interface TaxReturn {
   k1s: K1Income[];
   farms: ScheduleFFarm[];
   form4797Sales: Form4797Sale[];
+  /**
+   * §1231(c) 5-year lookback: sum of "nonrecaptured net §1231 losses" from
+   * the preceding 5 tax years (positive magnitude). When the current-year
+   * §1231 pool is a net gain, this amount is recharacterized as ordinary
+   * income (Form 4797 Part I line 8). Zero / undefined = no lookback.
+   */
+  priorYearNonrecaptured1231Losses?: number;
   depreciationAssets: DepreciationAsset[];
   homeOffices: HomeOfficeExpense[];
   schedule1Adjustments: Schedule1Adjustments;
@@ -1626,6 +1641,12 @@ export interface ComputedIncome {
   section1231NetGain: number;       // if positive → flows to LTCG
   section1231OrdinaryLoss: number;  // if negative → flows to ordinary income
   depreciationRecapture: number;    // §1245/1250 ordinary
+  /**
+   * §1231(c) 5-year lookback: portion of current-year net §1231 gain
+   * recharacterized as ORDINARY income up to the taxpayer's unrecaptured
+   * net §1231 losses from the preceding 5 tax years.
+   */
+  section1231RecapturedAsOrdinary: number;
   homeOfficeDeduction: number;      // reduces SE net profit
   // Schedule B (Form 1040) is required when taxable interest > $1,500 OR
   // ordinary dividends > $1,500 (also triggered by several other conditions

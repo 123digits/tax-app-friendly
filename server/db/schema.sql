@@ -909,6 +909,32 @@ CREATE TABLE IF NOT EXISTS form_4972 (
   updated_at            timestamptz NOT NULL DEFAULT now()
 );
 
+-- Form 8995 — §199A QBI deduction (simplified). Scalars live in a single-row
+-- companion table; activities are a child list. REIT/PTP dividends and
+-- prior-year loss carryforwards (QBI + REIT/PTP, stored as positive
+-- magnitudes) are on the parent row.
+CREATE TABLE IF NOT EXISTS form_8995 (
+  return_id                      text PRIMARY KEY REFERENCES tax_returns(id) ON DELETE CASCADE,
+  reit_ptp_dividends             numeric NOT NULL DEFAULT 0,
+  prior_year_qbi_loss_carry      numeric NOT NULL DEFAULT 0,
+  prior_year_reit_ptp_loss_carry numeric NOT NULL DEFAULT 0,
+  updated_at                     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS form_8995_activities (
+  id          text PRIMARY KEY,
+  return_id   text NOT NULL REFERENCES tax_returns(id) ON DELETE CASCADE,
+  name        text,
+  ein         text,
+  qbi         numeric NOT NULL DEFAULT 0,
+  is_sstb     boolean NOT NULL DEFAULT false,
+  w2_wages    numeric NOT NULL DEFAULT 0,
+  ubia        numeric NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS form_8995_activities_return_idx ON form_8995_activities(return_id);
+
 -- Gambling losses are a single scalar (capped to winnings on Sched A).
 DO $$
 BEGIN

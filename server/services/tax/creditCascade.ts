@@ -2,8 +2,12 @@
 //
 // §26(a) limits the aggregate of nonrefundable credits to the taxpayer's
 // "regular tax liability" (1040 line 16 + Schedule 2 Part I). The IRS applies
-// credits in the order listed on Schedule 3 Part I (and ultimately 1040
-// line 19 for the nonrefundable CTC/ODC, which is the last one).
+// credits in the order listed on Schedule 3 Part I (FTC, dependent care,
+// education, saver's, residential clean energy 5a, energy efficient 5b,
+// mortgage interest 6c, elderly/disabled 6d, clean vehicle 6f). The
+// nonrefundable CTC/ODC is computed separately on Schedule 8812 — its
+// nonrefundable portion lands on 1040 line 19 and the disallowed excess
+// spills to refundable ACTC on line 28.
 //
 // When credits in aggregate exceed that tax ceiling, §26(a) does NOT specify
 // pro-rata reduction — it applies them in order until liability is absorbed,

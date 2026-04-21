@@ -44,6 +44,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/section/form-2210', component: () => import('../views/sections/Form2210Section.vue') },
   { path: '/section/form-5405', component: () => import('../views/sections/Form5405Section.vue') },
   { path: '/section/form-4972', component: () => import('../views/sections/Form4972Section.vue') },
+  { path: '/section/form-8995', component: () => import('../views/sections/Form8995Section.vue') },
   { path: '/section/deductions', component: () => import('../views/sections/DeductionsSection.vue') },
   { path: '/section/review', component: () => import('../views/sections/ReviewSection.vue') },
   { path: '/admin', name: 'admin', component: () => import('../views/admin/AdminView.vue'), meta: { admin: true } },

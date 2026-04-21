@@ -5,9 +5,19 @@
 // physically present in a foreign country or countries for at least 330
 // full days during any 12 consecutive months, may exclude foreign earned
 // income up to `exclusionLimit` and, in addition, a portion of foreign
-// housing costs that exceed a "base housing amount" (16% of the
-// exclusion) up to a "housing cap" (simplified here as 30% of the
-// exclusion; the IRS publishes location-specific higher caps).
+// housing costs that exceed a "base housing amount" (16% of the exclusion)
+// up to a "housing cap".
+//
+// Housing cap §911(c)(2):
+//   - Default cap = `housingCapPct` (30%) × exclusionLimit. This is the
+//     floor specified in §911(c)(2)(A)(ii).
+//   - §911(c)(2)(B) authorizes the IRS to publish higher caps for specific
+//     high-cost locations (e.g. Hong Kong, Tokyo, London — see Notice
+//     2025-xx tables). When the caller supplies
+//     `input.locationAdjustedHousingCap` (full-year dollar amount for the
+//     assignment's locality from the published IRS notice), we use that
+//     instead of the 30% floor. We pro-rate both paths by the qualifying
+//     fraction (qualifyingDays / totalDaysInPeriod).
 //
 // Simplification: the exclusion is pro-rated by qualifying days /
 // days-in-period. We do not attempt to distinguish "employer-provided"
@@ -52,7 +62,21 @@ export function computeForm2555(
   );
 
   const housingBase = constants.housingBasePct * constants.exclusionLimit * fraction;
-  const housingCap = constants.housingCapPct * constants.exclusionLimit * fraction;
+  // §911(c)(2)(A) default cap = 30% × exclusion (pro-rated). §911(c)(2)(B)
+  // per-locality override: if the caller supplies a full-year location cap
+  // (from the annual IRS notice, e.g. $136,500 for Hong Kong), use that.
+  // Guard against accidental negatives / NaN. The IRS notice value is NEVER
+  // below the 30% floor, so we take the max to stay safe.
+  const locationOverride =
+    input.locationAdjustedHousingCap != null
+      ? Math.max(0, Number(input.locationAdjustedHousingCap) || 0)
+      : 0;
+  const defaultCapFullYear = constants.housingCapPct * constants.exclusionLimit;
+  const effectiveCapFullYear =
+    locationOverride > 0
+      ? Math.max(locationOverride, defaultCapFullYear)
+      : defaultCapFullYear;
+  const housingCap = effectiveCapFullYear * fraction;
   const housingExpenses = Math.max(0, Number(input.housingExpenses) || 0);
   const housingExclusion = Math.max(
     0,

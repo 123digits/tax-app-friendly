@@ -135,4 +135,78 @@ describe('computeForm2555', () => {
     expect(r.housingExclusion).toBeCloseTo(18200, 2);
     expect(r.totalExclusion).toBe(50000);
   });
+
+  // ----- §911(c)(2)(B) location-adjusted housing cap -----
+
+  it('location-adjusted cap (Hong Kong $136,500) raises housingCap above the 30% default', () => {
+    // Full-year bona-fide resident. Default 30% cap = $39,000.
+    // Location override = $136,500 (HK per IRS notice). Housing expenses
+    // $60,000 → min($136,500, $60,000) = $60,000; base = $20,800 → housing
+    // exclusion = $39,200 (vs $18,200 without the location adjustment).
+    const r = computeForm2555(
+      base({
+        foreignEarnedIncome: 200000,
+        qualifyingDays: 365,
+        housingExpenses: 60000,
+        isBonaFideResident: true,
+        locationAdjustedHousingCap: 136500,
+      }),
+      FEIE,
+    );
+    expect(r.housingCap).toBe(136500);
+    expect(r.housingExclusion).toBeCloseTo(39200, 2);
+    expect(r.totalExclusion).toBeCloseTo(130000 + 39200, 2);
+  });
+
+  it('location-adjusted cap is pro-rated by qualifying fraction', () => {
+    // 183/365 qualifying days. HK cap $136,500 full-year →
+    // effective = 136,500 × 183/365 ≈ 68,432.88.
+    // Base = 0.16 × 130,000 × 183/365 ≈ 10,424.66.
+    // Expenses $60,000 → min(cap, 60000) − base = 68432.88 − 10424.66 ≈ 58,008.22.
+    // But §911(d)(6) caps total at FEI 120,000.
+    const r = computeForm2555(
+      base({
+        foreignEarnedIncome: 120000,
+        qualifyingDays: 183,
+        housingExpenses: 60000,
+        isBonaFideResident: true,
+        locationAdjustedHousingCap: 136500,
+      }),
+      FEIE,
+    );
+    const expectedCap = 136500 * (183 / 365);
+    expect(r.housingCap).toBeCloseTo(expectedCap, 2);
+  });
+
+  it('location-adjusted cap below the 30% floor is ignored (floor wins)', () => {
+    // §911(c)(2)(A) guarantees the 30% floor. If a caller accidentally
+    // supplies a value below the floor, we defensively take max(override, floor).
+    const r = computeForm2555(
+      base({
+        foreignEarnedIncome: 150000,
+        qualifyingDays: 365,
+        housingExpenses: 60000,
+        isBonaFideResident: true,
+        locationAdjustedHousingCap: 10000, // accidentally low
+      }),
+      FEIE,
+    );
+    expect(r.housingCap).toBe(39000);     // 30% × 130k floor
+    expect(r.housingExclusion).toBeCloseTo(18200, 2);
+  });
+
+  it('undefined / null location override falls back to default 30% cap', () => {
+    const r = computeForm2555(
+      base({
+        foreignEarnedIncome: 150000,
+        qualifyingDays: 365,
+        housingExpenses: 60000,
+        isBonaFideResident: true,
+        // locationAdjustedHousingCap not set
+      }),
+      FEIE,
+    );
+    expect(r.housingCap).toBe(39000);
+    expect(r.housingExclusion).toBeCloseTo(18200, 2);
+  });
 });

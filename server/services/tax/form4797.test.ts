@@ -75,5 +75,71 @@ describe('summarizeForm4797', () => {
     expect(r.net1231Raw).toBe(0);
     expect(r.longTermCapitalGain).toBe(0);
     expect(r.ordinaryLoss).toBe(0);
+    expect(r.recaptured1231AsOrdinary).toBe(0);
+  });
+
+  // ----- §1231(c) 5-year lookback -----
+
+  it('§1231(c): no prior-year losses → full current-year gain stays LTCG', () => {
+    const r = summarizeForm4797(
+      [sale({ proceeds: 50000, costBasis: 30000, term: 'long_1231' })],
+      0,
+    );
+    expect(r.net1231Raw).toBe(20000);
+    expect(r.recaptured1231AsOrdinary).toBe(0);
+    expect(r.longTermCapitalGain).toBe(20000);
+    expect(r.ordinaryLoss).toBe(0);
+  });
+
+  it('§1231(c): current-year gain partially recharacterized up to prior-5yr losses', () => {
+    // Current net §1231 gain = $20,000; prior-5-year nonrecaptured §1231
+    // losses = $8,000. §1231(c) pulls $8,000 of the current gain out of
+    // LTCG and reports it as ordinary income; the remaining $12,000 stays
+    // LTCG on Schedule D.
+    const r = summarizeForm4797(
+      [sale({ proceeds: 50000, costBasis: 30000, term: 'long_1231' })],
+      8000,
+    );
+    expect(r.net1231Raw).toBe(20000);
+    expect(r.recaptured1231AsOrdinary).toBe(8000);
+    expect(r.longTermCapitalGain).toBe(12000);
+    expect(r.ordinaryLoss).toBe(0);
+  });
+
+  it('§1231(c): prior-5yr losses exceed current gain → entire gain is ordinary', () => {
+    // Current net §1231 gain = $5,000; prior-5-year nonrecaptured §1231
+    // losses = $12,000. §1231(c) recharacterizes the entire $5,000 as
+    // ordinary; no LTCG. (Unabsorbed $7,000 of prior losses remain for the
+    // caller to carry to the next year.)
+    const r = summarizeForm4797(
+      [sale({ proceeds: 35000, costBasis: 30000, term: 'long_1231' })],
+      12000,
+    );
+    expect(r.net1231Raw).toBe(5000);
+    expect(r.recaptured1231AsOrdinary).toBe(5000);
+    expect(r.longTermCapitalGain).toBe(0);
+    expect(r.ordinaryLoss).toBe(0);
+  });
+
+  it('§1231(c): current-year LOSS is NOT subject to the lookback', () => {
+    // §1231(c)(1) only recaptures when current-year net §1231 is a GAIN.
+    // Current-year losses always flow as ordinary loss regardless of history.
+    const r = summarizeForm4797(
+      [sale({ proceeds: 10000, costBasis: 40000, term: 'long_1231' })],
+      100000, // irrelevant — current year is a loss
+    );
+    expect(r.net1231Raw).toBe(-30000);
+    expect(r.recaptured1231AsOrdinary).toBe(0);
+    expect(r.longTermCapitalGain).toBe(0);
+    expect(r.ordinaryLoss).toBe(-30000);
+  });
+
+  it('§1231(c): negative priorYear input is clamped to zero (defensive)', () => {
+    const r = summarizeForm4797(
+      [sale({ proceeds: 50000, costBasis: 30000, term: 'long_1231' })],
+      -99999,
+    );
+    expect(r.recaptured1231AsOrdinary).toBe(0);
+    expect(r.longTermCapitalGain).toBe(20000);
   });
 });

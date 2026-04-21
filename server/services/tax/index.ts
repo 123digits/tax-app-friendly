@@ -193,7 +193,13 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // Form 4797 business-property sales: §1231 pool net-gain → LTCG, net-loss →
   // ordinary; depreciation recapture (§1245/1250) is always ordinary; Part II
   // short-term rows are ordinary.
-  const form4797 = summarizeForm4797(ret.form4797Sales ?? []);
+  // §1231(c) 5-year lookback: if current-year §1231 pool is a net gain, a
+  // portion (up to the taxpayer's nonrecaptured prior-5-year §1231 losses)
+  // is recharacterized as ordinary income rather than LTCG.
+  const form4797 = summarizeForm4797(
+    ret.form4797Sales ?? [],
+    Math.max(0, Number(ret.priorYearNonrecaptured1231Losses) || 0),
+  );
   const caps = splitCapitalGains(ret.capitalGains);
   // 1099-DIV Box 2a total capital gain distributions aggregate across all
   // dividend rows. Per Schedule D instructions, these land on Schedule D
@@ -258,6 +264,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     k1Agg.nonPassiveOrdinary + k1Agg.interest + k1Agg.ordinaryDividends +
     k1Agg.royalties + k1Agg.shortTermGain + k1Agg.longTermGain + k1Agg.section1231Gain +
     form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss + form4797.longTermCapitalGain
+    + form4797.recaptured1231AsOrdinary
     - seTaxDeduction;
   const otherPassive: OtherPassiveEntry[] = [
     ...rentalSplit.otherPassiveEntries.map((e) => ({ ...e, kind: 'rental' as const })),
@@ -302,7 +309,8 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     rentalNetForAgi + royaltyNet +
     k1OrdinaryForAgi + k1Agg.interest + k1Agg.ordinaryDividends +
     k1Agg.royalties + k1Agg.shortTermGain + k1Agg.longTermGain + k1Agg.section1231Gain +
-    form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss + form4797.longTermCapitalGain;
+    form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss + form4797.longTermCapitalGain
+    + form4797.recaptured1231AsOrdinary;
   const ssTier = constants.ssTaxability?.[fs];
   const ssResult = ret.socialSecurity && ssTier
     ? computeTaxableSocialSecurity(ret.socialSecurity, otherAgi, taxExemptInterest, fs, ssTier)
@@ -478,10 +486,20 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // Form 1116 limitation anchor = regular tax + LTCG tax + Schedule 2 Part I
   // (AMT + excess APTC repayment). Per §904(a)/(b) and Form 1116 (2024)
   // line 20.
+  //
+  // §904(d)(2)(F) HTKO threshold: highest US individual rate comes from the
+  // top marginal bracket for the filing status (may be a single-filer-style
+  // 37% today, but honors admin-configurable overrides for future years).
+  const topBracket = constants.brackets[fs];
+  const highestUsRate =
+    topBracket && topBracket.length > 0
+      ? (topBracket[topBracket.length - 1].rate ?? 0.37)
+      : 0.37;
   const form1116Computed = computeForm1116(
     ret.form1116Baskets,
     round(regularTax + ltcgTax + form6251Early.amtLiability + form8962Computed.aptcRepayment),
     taxableIncome,
+    highestUsRate,
   );
 
   // Pre-cascade (form-computed) credits — each is already capped at its own
@@ -788,7 +806,8 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // reduces AGI.
   const sched1_businessIncomeC = round(schedCNet - depSummary.total - homeOfficeDed);
   const sched1_otherGains4797 = round(
-    form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss,
+    form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss
+    + form4797.recaptured1231AsOrdinary,
   );
   const sched1_rentalRoyaltyE = round(
     rentalNetForAgi + royaltyNet + k1OrdinaryForAgi + (k1Agg.royalties || 0),
@@ -928,6 +947,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
       section1231NetGain: round(form4797.longTermCapitalGain),
       section1231OrdinaryLoss: round(form4797.ordinaryLoss),
       depreciationRecapture: round(form4797.recapture),
+      section1231RecapturedAsOrdinary: round(form4797.recaptured1231AsOrdinary),
       homeOfficeDeduction: round(homeOfficeDed),
       scheduleBRequired: isScheduleBRequired(
         interest + (k1Agg.interest || 0),

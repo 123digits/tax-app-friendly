@@ -94,6 +94,7 @@ const configSchema = z.object({
   actc: groupSchema,
   ptc: groupSchema,
   eitcInvestmentIncomeLimit: z.number().nonnegative().nullable().optional(),
+  qbi: groupSchema,
 });
 
 router.get('/tax-years', async (_req, res, next) => {

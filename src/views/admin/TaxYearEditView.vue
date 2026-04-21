@@ -36,7 +36,8 @@ type GroupKey =
   // Wave 1 groups
   | 'seTax' | 'penalties' | 'scheduleRCredit' | 'residentialEnergy'
   | 'mortgageCredit' | 'evCredit' | 'homeOffice' | 'passiveLoss'
-  | 'underpaymentPenalty' | 'householdEmployment' | 'actc' | 'ptc';
+  | 'underpaymentPenalty' | 'householdEmployment' | 'actc' | 'ptc'
+  | 'qbi';
 
 const GROUP_LABELS: { key: GroupKey; label: string; hint: string }[] = [
   { key: 'retirement',         label: 'Retirement (IRA, SEP, Solo 401k)',   hint: 'iraLimit, iraCatchUp, sepPercent, solo401kLimit, catchUpAge' },
@@ -65,6 +66,7 @@ const GROUP_LABELS: { key: GroupKey; label: string; hint: string }[] = [
   { key: 'householdEmployment', label: 'Household employment (Schedule H)',   hint: 'ssMedicareRate, futaNetRate' },
   { key: 'actc',                label: 'ACTC / CTC phase-in (Schedule 8812)', hint: 'refundablePerChild, earnedIncomeThreshold, phaseInRate, phaseoutPer1000' },
   { key: 'ptc',                 label: 'Premium Tax Credit (Form 8962)',      hint: 'contributionBands[], repaymentCapSingle[], repaymentCapFamily[]' },
+  { key: 'qbi',                 label: 'QBI Deduction (Form 8995 §199A)',      hint: 'thresholds per filing status (single, mfj, mfs, hoh, qw), deductionRate (e.g. 0.20)' },
 ];
 
 // Mirror of each group as a JSON string for the textarea. Pre-computed on

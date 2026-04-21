@@ -53,6 +53,8 @@ import type {
   Form2210,
   Form5405,
   Form4972,
+  Form8995,
+  QbiActivity,
 } from '../../shared/types.js';
 
 const router = Router();
@@ -713,6 +715,31 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     computedTax: num(f4972Row?.computed_tax),
   };
 
+  const f8995Res = await db.query<any>('SELECT * FROM form_8995 WHERE return_id = $1', [id]);
+  const f8995Row = f8995Res.rows[0];
+  const f8995ActRes = await db.query<any>(
+    'SELECT * FROM form_8995_activities WHERE return_id = $1 ORDER BY id',
+    [id]
+  );
+  const f8995Activities: QbiActivity[] = f8995ActRes.rows.map((r) => ({
+    id: r.id,
+    name: r.name ?? null,
+    ein: r.ein ?? null,
+    qbi: num(r.qbi),
+    isSstb: !!r.is_sstb,
+    w2Wages: num(r.w2_wages),
+    ubia: num(r.ubia),
+  }));
+  const form8995: Form8995 | undefined =
+    f8995Row || f8995Activities.length > 0
+      ? {
+          activities: f8995Activities,
+          reitPtpDividends: num(f8995Row?.reit_ptp_dividends),
+          priorYearQbiLossCarry: num(f8995Row?.prior_year_qbi_loss_carry),
+          priorYearReitPtpLossCarry: num(f8995Row?.prior_year_reit_ptp_loss_carry),
+        }
+      : undefined;
+
   const itRes = await db.query<any>('SELECT * FROM itemized_deductions WHERE return_id = $1', [id]);
   const itRow = itRes.rows[0];
   const itemized: ItemizedDeductions = {
@@ -771,6 +798,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     form2210,
     form5405,
     form4972,
+    form8995,
     itemized,
     useStandardDeduction: !!row.use_standard_deduction,
     estimatedPayments: num(row.estimated_payments),
@@ -2689,6 +2717,80 @@ router.put('/form-4972', async (req, res, next) => {
         body.computedTax,
       ]
     );
+    await touchReturn(row.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Form 8995 (§199A QBI deduction — simplified) ---
+//
+// Scalars live on a single-row `form_8995` companion table; activities are
+// a child list stored in `form_8995_activities`. The PUT endpoint accepts
+// both in one payload and applies them atomically (delete + re-insert for
+// activities, upsert for scalars).
+
+const form8995ActivitySchema = z.object({
+  id: z.string().optional(),
+  name: z.string().nullable().optional(),
+  ein: z.string().nullable().optional(),
+  qbi: z.number(),
+  isSstb: z.boolean().optional(),
+  w2Wages: z.number().min(0).optional(),
+  ubia: z.number().min(0).optional(),
+});
+
+const form8995Schema = z.object({
+  activities: z.array(form8995ActivitySchema).default([]),
+  reitPtpDividends: z.number().default(0),
+  priorYearQbiLossCarry: z.number().min(0).default(0),
+  priorYearReitPtpLossCarry: z.number().min(0).default(0),
+});
+
+router.put('/form-8995', async (req, res, next) => {
+  try {
+    const body = form8995Schema.parse(req.body);
+    const year = await resolveYear(req.userId!, parseYear(req.query.year));
+    const row = await getOrCreateReturn(req.userId!, year);
+    const db = await getDb();
+
+    await db.query(
+      `INSERT INTO form_8995
+         (return_id, reit_ptp_dividends, prior_year_qbi_loss_carry, prior_year_reit_ptp_loss_carry)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (return_id) DO UPDATE SET
+           reit_ptp_dividends = EXCLUDED.reit_ptp_dividends,
+           prior_year_qbi_loss_carry = EXCLUDED.prior_year_qbi_loss_carry,
+           prior_year_reit_ptp_loss_carry = EXCLUDED.prior_year_reit_ptp_loss_carry,
+           updated_at = now()`,
+      [
+        row.id,
+        body.reitPtpDividends,
+        body.priorYearQbiLossCarry,
+        body.priorYearReitPtpLossCarry,
+      ]
+    );
+
+    await db.query('DELETE FROM form_8995_activities WHERE return_id = $1', [row.id]);
+    for (const a of body.activities) {
+      await db.query(
+        `INSERT INTO form_8995_activities
+           (id, return_id, name, ein, qbi, is_sstb, w2_wages, ubia)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [
+          a.id ?? newId(),
+          row.id,
+          a.name ?? null,
+          a.ein ?? null,
+          a.qbi,
+          a.isSstb ?? false,
+          a.w2Wages ?? 0,
+          a.ubia ?? 0,
+        ]
+      );
+    }
+
     await touchReturn(row.id);
     res.json({ ok: true });
   } catch (err) {
