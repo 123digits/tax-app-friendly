@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["progress", "clear-text", "html"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "server/services/tax/taxComputation.ts",
+    "server/services/tax/otherTaxes.ts",
+    "server/services/tax/form8606.ts",
+    "server/services/tax/eitc.ts",
+    "server/services/tax/credits.ts",
+    "server/services/tax/deductions.ts",
+    "server/services/tax/payments.ts",
+    "server/services/tax/k1.ts",
+    "server/services/tax/scheduleE.ts",
+    "server/services/tax/scheduleF.ts",
+    "server/services/tax/form2441.ts",
+    "server/services/tax/form2555.ts",
+    "server/services/tax/form8889.ts",
+    "server/services/tax/form8829.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "thresholds": {
+    "high": 85,
+    "low": 65,
+    "break": 50
+  },
+  "concurrency": 2,
+  "timeoutMS": 60000,
+  "disableTypeChecks": "{test,src,server,shared}/**/*.{js,ts,jsx,tsx,html,vue}"
+}

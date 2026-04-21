@@ -8,3 +8,7 @@ data/
 .vscode
 .idea
 coverage
+reports
+.stryker-tmp
+playwright-report
+test-results

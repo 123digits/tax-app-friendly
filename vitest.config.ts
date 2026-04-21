@@ -28,6 +28,12 @@ export default defineConfig({
       ['server/**', 'node'],
       ['shared/**', 'node'],
     ],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'e2e/**',
+      '.stryker-tmp/**',
+    ],
     setupFiles: ['./test-setup/vitest.setup.ts'],
     server: {
       deps: {
@@ -58,6 +64,16 @@ export default defineConfig({
         'coverage/**',
         'node_modules/**',
       ],
+      // CI regression guards. These match the current floor at the time the
+      // thresholds were introduced; future PRs that drop below will fail
+      // `npm test -- --coverage`. Function % stays lax because v8 counts
+      // generated Vue render closures and lazy route imports as functions.
+      thresholds: {
+        statements: 97,
+        branches: 85,
+        lines: 97,
+        functions: 50,
+      },
     },
   },
 });

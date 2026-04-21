@@ -57,25 +57,23 @@ export function computeEitc(
   if (!eitcTable) return zeros();
 
   // Qualifying children (capped at 3 — the EITC table tops out at "3+").
-  const autoKids = Array.isArray(dependents)
-    ? dependents.filter((d) => d.isQualifyingChild).length
-    : 0;
+  const autoKids = (dependents ?? []).filter((d) => d.isQualifyingChild).length;
   const qcRaw =
     input?.qualifyingChildrenOverride != null
-      ? Math.max(0, Math.floor(Number(input.qualifyingChildrenOverride) || 0))
+      ? Math.max(0, Math.floor(input.qualifyingChildrenOverride))
       : autoKids;
   const qualifyingChildren = Math.min(3, qcRaw);
 
   // Investment income test.
   const computedInvestment =
-    Math.max(0, Number(interestIncome) || 0) +
-    Math.max(0, Number(ordinaryDividends) || 0) +
-    Math.max(0, Number(netCapitalGain) || 0) +
-    Math.max(0, Number(royalties) || 0) +
-    Math.max(0, Number(rentalPassiveIncome) || 0);
+    Math.max(0, interestIncome) +
+    Math.max(0, ordinaryDividends) +
+    Math.max(0, netCapitalGain) +
+    Math.max(0, royalties) +
+    Math.max(0, rentalPassiveIncome);
   const investmentIncome =
     input?.investmentIncomeOverride != null
-      ? Math.max(0, Number(input.investmentIncomeOverride) || 0)
+      ? Math.max(0, input.investmentIncomeOverride)
       : computedInvestment;
   if (investmentIncome > limit) {
     return {
@@ -87,10 +85,9 @@ export function computeEitc(
   }
 
   // Earned income (with optional combat-pay election per §32(c)(2)(B)(vi)).
-  let earnedIncome =
-    Math.max(0, Number(w2Wages) || 0) + Math.max(0, Number(seNetEarnings) || 0);
+  let earnedIncome = Math.max(0, w2Wages) + Math.max(0, seNetEarnings);
   if (input?.includeCombatPay) {
-    earnedIncome += Math.max(0, Number(input.combatPayAmount) || 0);
+    earnedIncome += Math.max(0, input.combatPayAmount);
   }
 
   // Age test for childless filers (25-64). MVP approximates via a single
