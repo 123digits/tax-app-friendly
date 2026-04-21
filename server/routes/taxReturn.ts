@@ -691,10 +691,10 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
       num(f2210Row?.withholding_q4),
     ],
     estimatedPaymentsByQuarter: [
-      num(f2210Row?.estimated_q1),
-      num(f2210Row?.estimated_q2),
-      num(f2210Row?.estimated_q3),
-      num(f2210Row?.estimated_q4),
+      num(f2210Row?.estimated_payments_q1),
+      num(f2210Row?.estimated_payments_q2),
+      num(f2210Row?.estimated_payments_q3),
+      num(f2210Row?.estimated_payments_q4),
     ],
     requestWaiver: !!f2210Row?.request_waiver,
   };
@@ -2616,7 +2616,7 @@ router.put('/form-2210', async (req, res, next) => {
       `INSERT INTO form_2210
          (return_id, prior_year_tax, prior_year_agi,
           withholding_q1, withholding_q2, withholding_q3, withholding_q4,
-          estimated_q1, estimated_q2, estimated_q3, estimated_q4,
+          estimated_payments_q1, estimated_payments_q2, estimated_payments_q3, estimated_payments_q4,
           request_waiver)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          ON CONFLICT (return_id) DO UPDATE SET
@@ -2626,10 +2626,10 @@ router.put('/form-2210', async (req, res, next) => {
            withholding_q2 = EXCLUDED.withholding_q2,
            withholding_q3 = EXCLUDED.withholding_q3,
            withholding_q4 = EXCLUDED.withholding_q4,
-           estimated_q1 = EXCLUDED.estimated_q1,
-           estimated_q2 = EXCLUDED.estimated_q2,
-           estimated_q3 = EXCLUDED.estimated_q3,
-           estimated_q4 = EXCLUDED.estimated_q4,
+           estimated_payments_q1 = EXCLUDED.estimated_payments_q1,
+           estimated_payments_q2 = EXCLUDED.estimated_payments_q2,
+           estimated_payments_q3 = EXCLUDED.estimated_payments_q3,
+           estimated_payments_q4 = EXCLUDED.estimated_payments_q4,
            request_waiver = EXCLUDED.request_waiver,
            updated_at = now()`,
       [
