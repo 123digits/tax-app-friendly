@@ -1,10 +1,10 @@
 name: Mutation testing (nightly)
 
-# Mutation testing is expensive (~3-5 minutes for the core tax modules).
-# It runs on a schedule rather than every PR, and on-demand via
-# workflow_dispatch. Results post as an artifact; there's no per-PR gate
-# because dropping mutation score is often driven by new code paths that
-# need fresh tests — a regression message is more useful than a hard fail.
+# Mutation testing is expensive. With vitest.related=false the runner has to
+# run the entire ~1,000-test suite for every mutant it can't rule out via
+# perTest coverage analysis, so a full pass across the configured 7 tax
+# modules (~270 mutants) takes 30-45 minutes. Schedule it nightly rather
+# than per-PR; results post as an artifact.
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
   mutate:
     name: Stryker mutation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
