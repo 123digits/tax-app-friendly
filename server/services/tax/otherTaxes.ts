@@ -75,15 +75,14 @@ export function computeSeTax(
       const key: OwnerSpouse =
         filingStatus === 'mfj' ? (p.owner ?? 'taxpayer') : 'taxpayer';
       const cur = grouping.get(key) ?? { seEarnings: 0, w2SsWages: 0 };
-      cur.seEarnings += Math.max(0, Number(p.seEarnings) || 0);
-      cur.w2SsWages += Math.max(0, Number(p.w2SsWages) || 0);
+      cur.seEarnings += Math.max(0, p.seEarnings);
+      cur.w2SsWages += Math.max(0, p.w2SsWages);
       grouping.set(key, cur);
     }
 
     let ssPortion = 0;
     let totalNetSe = 0;
     for (const { seEarnings, w2SsWages } of grouping.values()) {
-      if (seEarnings <= 0) continue;
       const netSe = seEarnings * incomeFactor;
       totalNetSe += netSe;
       // IRC §1402(b): each spouse has their own SS wage-base ceiling on MFJ.
@@ -102,11 +101,10 @@ export function computeSeTax(
   // SS-wages total + one ceiling. Correct for non-MFJ (and for MFJ where
   // only one spouse has SE income, once the caller passes that spouse's
   // own W-2 SS wages).
-  const seEarnings = seEarningsOrPerOwner;
-  const w2SsWages = w2SsWagesOrFilingStatus as number;
-  if (seEarnings <= 0) return { seTax: 0, seTaxDeduction: 0 };
+  const seEarnings = Math.max(0, seEarningsOrPerOwner);
+  const w2SsWages = Math.max(0, w2SsWagesOrFilingStatus as number);
   const netSe = seEarnings * incomeFactor;
-  const ssBaseRemaining = Math.max(0, ssWageBase - Math.max(0, w2SsWages));
+  const ssBaseRemaining = Math.max(0, ssWageBase - w2SsWages);
   const ssPortion = Math.min(netSe, ssBaseRemaining) * ssRate;
   const medicarePortion = netSe * medicareRate;
   const seTax = round(ssPortion + medicarePortion);

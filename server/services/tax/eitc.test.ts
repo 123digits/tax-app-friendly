@@ -250,4 +250,133 @@ describe('computeEitc', () => {
     );
     expect(r.qualifyingChildren).toBe(3);
   });
+
+  // --- Mutation-test gap killers (added after Stryker analysis) ---
+
+  it('auto-computes investment income from portfolio components (kills max/min mutant)', () => {
+    const r = computeEitc(
+      base(),
+      EMPTY_DEPS,
+      'single',
+      5000,
+      5000,
+      0,
+      100, // interest
+      200, // ord div
+      50,  // cap gain
+      25,  // royalties
+      75,  // rental
+      makeTable(),
+    );
+    // Sum of positive investment components = 450, below the limit.
+    expect(r.investmentIncome).toBe(450);
+    expect(r.disqualifiedByInvestment).toBe(false);
+  });
+
+  it('clamps negative investment component to zero', () => {
+    // If any investment source arrives negative (e.g. net capital loss), it
+    // is clamped to 0 for the investment test — not subtracted from others.
+    const r = computeEitc(
+      base(),
+      EMPTY_DEPS,
+      'single',
+      5000,
+      5000,
+      0,
+      100, // interest
+      100, // ord div
+      -500, // negative cap gain → clamped to 0
+      0,
+      0,
+      makeTable(),
+    );
+    expect(r.investmentIncome).toBe(200);
+  });
+
+  it('successful credit returns disqualifiedByInvestment: false explicitly', () => {
+    // Stryker mutates `disqualifiedByInvestment: false` → `true` on the
+    // happy-path branch. A strong assertion kills that mutant.
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 20000, 20000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.disqualifiedByInvestment).toBe(false);
+    expect(r.credit).toBe(6600);
+  });
+
+  it('single filer at identical inputs to MFS yields a non-zero credit', () => {
+    // Contrast test — same inputs under `single` give a credit; under `mfs`
+    // the result is all zeros. Kills the `filingStatus === 'mfs'` mutants.
+    const single = computeEitc(base(), EMPTY_DEPS, 'single', 5000, 5000, 0, 0, 0, 0, 0, 0, makeTable());
+    const mfs = computeEitc(base(), EMPTY_DEPS, 'mfs', 5000, 5000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(single.credit).toBeGreaterThan(0);
+    expect(mfs.credit).toBe(0);
+    expect(mfs.qualifyingChildren).toBe(0);
+    expect(mfs.earnedIncome).toBe(0);
+  });
+
+  it('hoh filer is eligible (kills the "filingStatus = empty string" mutant)', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'hoh', 5000, 5000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.credit).toBeGreaterThan(0);
+  });
+
+  it('undefined dependents array (not just empty) → 0 kids auto-counted', () => {
+    const r = computeEitc(
+      base(),
+      undefined,
+      'single',
+      5000,
+      5000,
+      0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(r.qualifyingChildren).toBe(0);
+    // Earned-income phase-in: 5000 × 0.0765 = 382.50 (childless row).
+    expect(r.credit).toBeCloseTo(382.5, 2);
+  });
+
+  it('ignores non-qualifying dependents (filter kills the `length`-only mutant)', () => {
+    const deps: Dependent[] = [
+      qcDep('a'),
+      qcDep('b'),
+      // Two non-qualifying parents → .length would say 4 kids, filter says 2.
+      { id: 'p1', name: 'P1', ssnLast4: null, relationship: 'parent', dob: null, isQualifyingChild: false },
+      { id: 'p2', name: 'P2', ssnLast4: null, relationship: 'parent', dob: null, isQualifyingChild: false },
+    ];
+    const r = computeEitc(base(), deps, 'single', 20000, 20000, 0, 0, 0, 0, 0, 0, makeTable());
+    // 2-kid row: max credit 6600, AGI 20000 < phaseOutStart 22000 → full 6600.
+    expect(r.qualifyingChildren).toBe(2);
+    expect(r.credit).toBe(6600);
+  });
+
+  it('AGI exactly at phaseOutStart triggers no reduction', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    // phaseOutStart = 22000 for 2 kids. AGI = 22000 → measure == start → 0 reduction.
+    const r = computeEitc(base(), deps, 'single', 22000, 22000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.phaseOutAmount).toBe(0);
+    expect(r.credit).toBe(6600);
+  });
+
+  it('AGI one dollar past phaseOutStart triggers a phase-out', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 22001, 22001, 0, 0, 0, 0, 0, 0, makeTable());
+    // Reduction = 1 × 0.2106 = 0.2106 → credit = 6599.79.
+    expect(r.phaseOutAmount).toBeCloseTo(0.21, 2);
+    expect(r.credit).toBeCloseTo(6599.79, 2);
+  });
+
+  it('measure uses the larger of AGI and earned income', () => {
+    // Earned income = 60k but AGI = 5k → measure = 60k (earnedIncome wins)
+    // → 2-kid row maxAgi = 55k → credit zeroed even though AGI is low.
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 5000, 60000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.credit).toBe(0);
+  });
+
+  it('measure: AGI higher than earned income wins when phasing out', () => {
+    // Earned income = 20k (plateau), AGI = 50k → measure 50k → full reduction.
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 50000, 20000, 0, 0, 0, 0, 0, 0, makeTable());
+    // Reduction = (50000-22000) × 0.2106 = 5896.80; raw phaseIn = min(6600, 20000×0.4=8000) = 6600
+    // credit = max(0, 6600 - 5896.80) = 703.20.
+    expect(r.credit).toBeCloseTo(703.2, 1);
+  });
 });

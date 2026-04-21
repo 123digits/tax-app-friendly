@@ -8,16 +8,14 @@ function bracketCap(b: Bracket): number {
 }
 
 export function applyBrackets(taxableIncome: number, brackets: Bracket[]): number {
-  if (taxableIncome <= 0) return 0;
+  const ti = Math.max(0, taxableIncome);
   let tax = 0;
   let lastEdge = 0;
   for (const b of brackets) {
     const cap = bracketCap(b);
-    const edge = Math.min(taxableIncome, cap);
-    if (edge > lastEdge) {
-      tax += (edge - lastEdge) * b.rate;
-    }
-    if (taxableIncome <= cap) break;
+    const edge = Math.min(ti, cap);
+    tax += Math.max(0, edge - lastEdge) * b.rate;
+    if (ti <= cap) break;
     lastEdge = cap;
   }
   return round(tax);
@@ -36,21 +34,18 @@ export function computeIncomeTax(
 
   const regularTax = applyBrackets(ordinary, brackets);
 
-  let remaining = preferential;
-  let ltcgTax = 0;
+  // Fill the 0%, 15%, and 20% LTCG brackets in order, stacking on top of
+  // ordinary income. Each bracket's `room` clamps non-negative so we can
+  // drop the `remaining > 0` guards — zero-width bands simply contribute 0.
   const startsAt = ordinary;
   const zeroRoom = Math.max(0, ltcg.zeroUpTo - startsAt);
-  const inZero = Math.min(remaining, zeroRoom);
-  remaining -= inZero;
-  if (remaining > 0) {
-    const topOfFifteen = ltcg.fifteenUpTo;
-    const fifteenRoom = Math.max(0, topOfFifteen - Math.max(startsAt + inZero, ltcg.zeroUpTo));
-    const inFifteen = Math.min(remaining, fifteenRoom);
-    ltcgTax += inFifteen * 0.15;
-    remaining -= inFifteen;
-  }
-  if (remaining > 0) {
-    ltcgTax += remaining * 0.20;
-  }
+  const inZero = Math.min(preferential, zeroRoom);
+  const fifteenRoom = Math.max(
+    0,
+    ltcg.fifteenUpTo - Math.max(startsAt + inZero, ltcg.zeroUpTo),
+  );
+  const inFifteen = Math.min(Math.max(0, preferential - inZero), fifteenRoom);
+  const inTwenty = Math.max(0, preferential - inZero - inFifteen);
+  const ltcgTax = inFifteen * 0.15 + inTwenty * 0.20;
   return { regularTax: round(regularTax), ltcgTax: round(ltcgTax) };
 }

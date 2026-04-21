@@ -1,0 +1,34 @@
+name: Mutation testing (nightly)
+
+# Mutation testing is expensive (~3-5 minutes for the core tax modules).
+# It runs on a schedule rather than every PR, and on-demand via
+# workflow_dispatch. Results post as an artifact; there's no per-PR gate
+# because dropping mutation score is often driven by new code paths that
+# need fresh tests — a regression message is more useful than a hard fail.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # daily at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  mutate:
+    name: Stryker mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Run Stryker
+        run: npm run mutate
+      - name: Upload Stryker HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 14

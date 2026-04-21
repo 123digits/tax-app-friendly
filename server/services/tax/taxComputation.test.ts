@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyBrackets, computeIncomeTax, round } from './taxComputation.js';
-import type { TaxYearConstants } from '../../../shared/types.js';
+import type { Bracket, TaxYearConstants } from '../../../shared/types.js';
 
 const constants = {
   brackets: {
@@ -67,5 +67,85 @@ describe('taxComputation', () => {
     const out = computeIncomeTax(60000, 0, 'single', constants);
     expect(out.ltcgTax).toBe(0);
     expect(out.regularTax).toBeGreaterThan(0);
+  });
+
+  // --- Boundary + mutation-targeted cases ---
+
+  it('applyBrackets with income exactly at a bracket edge', () => {
+    // 10000 straddles first-bracket boundary. Tax = 10000*0.10 = 1000 (all
+    // first bracket; second bracket yields 0 because edge - lastEdge = 0).
+    expect(applyBrackets(10000, constants.brackets.single)).toBe(1000);
+  });
+
+  it('applyBrackets with income exactly at second-bracket top', () => {
+    // 50000 = 10000*0.10 + 40000*0.20 = 1000 + 8000 = 9000.
+    expect(applyBrackets(50000, constants.brackets.single)).toBe(9000);
+  });
+
+  it('applyBrackets income one dollar above bracket edge crosses into next tier', () => {
+    // 10001 = 10000*0.10 + 1*0.20 = 1000.20.
+    expect(applyBrackets(10001, constants.brackets.single)).toBeCloseTo(1000.2, 2);
+  });
+
+  it('applyBrackets integrates to within 1 cent of piecewise integral', () => {
+    // Sanity: tax(100k) must equal tax(50k) + (100k-50k) × top-rate
+    // when 100k is already past every bounded bracket (this schedule tops
+    // at 50000, rate 0.3).
+    const at50 = applyBrackets(50000, constants.brackets.single);
+    const at100 = applyBrackets(100000, constants.brackets.single);
+    expect(at100 - at50).toBeCloseTo(50000 * 0.30, 2);
+  });
+
+  it('computeIncomeTax: preferential exactly equal to zeroUpTo bracket room', () => {
+    // ordinary=0, preferential=40000 (exactly fills 0% bucket) → ltcgTax=0.
+    const out = computeIncomeTax(40000, 40000, 'single', constants);
+    expect(out.regularTax).toBe(0);
+    expect(out.ltcgTax).toBe(0);
+  });
+
+  it('computeIncomeTax: preferential one dollar past zero-bracket pays 15%', () => {
+    // ordinary=0, preferential=40001 → 1 dollar at 15% = 0.15.
+    const out = computeIncomeTax(40001, 40001, 'single', constants);
+    expect(out.ltcgTax).toBeCloseTo(0.15, 2);
+  });
+
+  it('computeIncomeTax: ordinary stacked under preferential pushes LTCG into 15%', () => {
+    // ordinary=40000, preferential=10000 → preferential starts at 40000 which
+    // is exactly at zeroUpTo. 0 room at 0%, all $10k at 15% = 1500.
+    const out = computeIncomeTax(50000, 10000, 'single', constants);
+    expect(out.ltcgTax).toBeCloseTo(1500, 2);
+  });
+
+  it('computeIncomeTax: preferential entirely in 20% tier', () => {
+    // ordinary=500000, preferential=100000 → startsAt=500000, beyond
+    // fifteenUpTo=500000 → all 100k at 20% = 20000.
+    const out = computeIncomeTax(600000, 100000, 'single', constants);
+    expect(out.ltcgTax).toBeCloseTo(20000, 2);
+  });
+
+  it('computeIncomeTax: preferential capped by taxable income', () => {
+    // preferential exceeds taxableIncome; only taxableIncome counts.
+    const out = computeIncomeTax(5000, 100000, 'single', constants);
+    expect(out.regularTax).toBe(0);
+    // 5000 falls in 0% ltcg bracket → 0.
+    expect(out.ltcgTax).toBe(0);
+  });
+
+  it('computeIncomeTax: negative preferential treated as zero', () => {
+    const out = computeIncomeTax(20000, -5000, 'single', constants);
+    expect(out.ltcgTax).toBe(0);
+    expect(out.regularTax).toBeGreaterThan(0);
+  });
+
+  it('applyBrackets never produces negative tax with negative income', () => {
+    expect(applyBrackets(-100, constants.brackets.single)).toBe(0);
+    expect(applyBrackets(-100000, constants.brackets.single)).toBe(0);
+  });
+
+  it('applyBrackets with single unbounded bracket taxes all income at one rate', () => {
+    const flat: Bracket[] = [{ upTo: null, rate: 0.25 }];
+    expect(applyBrackets(10000, flat)).toBe(2500);
+    expect(applyBrackets(1_000_000, flat)).toBe(250000);
+    expect(applyBrackets(0, flat)).toBe(0);
   });
 });

@@ -116,7 +116,7 @@ export function computeEitc(
   const phaseInAmountRaw = Math.min(row.maxCredit, earnedIncome * row.phaseInRate);
 
   // Phase-out measure = larger of earned income and AGI (per §32(a)(2)).
-  const measure = Math.max(earnedIncome, Math.max(0, Number(agi) || 0));
+  const measure = Math.max(earnedIncome, Math.max(0, agi));
 
   // Phase-out reduction.
   const phaseOutAmountRaw =
@@ -125,12 +125,9 @@ export function computeEitc(
       : 0;
 
   // Above maxAgi the credit is fully zero.
-  let creditRaw = measure > row.maxAgi
+  const creditRaw = measure > row.maxAgi
     ? 0
     : Math.max(0, phaseInAmountRaw - phaseOutAmountRaw);
-
-  // Never exceed maxCredit (defensive).
-  creditRaw = Math.min(row.maxCredit, creditRaw);
 
   return {
     qualifyingChildren,

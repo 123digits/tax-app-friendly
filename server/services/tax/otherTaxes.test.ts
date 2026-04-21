@@ -339,3 +339,166 @@ describe('computeSeTax (per-spouse SS wage base, IRC §1402(b))', () => {
     expect(seTax).toBeLessThan(expectedSs + expectedMed + 5);
   });
 });
+
+// --- Mutation-targeted boundary tests for the SE-tax/per-owner path ---
+describe('computeSeTax — boundary + mutation kills', () => {
+  it('aggregates taxpayer + spouse SE earnings into separate ceilings on MFJ', () => {
+    // Each spouse has $168,600 SE. On MFJ, each gets their own SS ceiling →
+    // 2 × 168600 × 0.9235 × 0.124 SS + full net × 0.029 medicare.
+    const out = computeSeTax(
+      [
+        { owner: 'taxpayer', seEarnings: 168600, w2SsWages: 0 },
+        { owner: 'spouse', seEarnings: 168600, w2SsWages: 0 },
+      ],
+      'mfj',
+      168600,
+    );
+    // Contrast: non-MFJ collapses both into taxpayer → one ceiling.
+    const nonMfj = computeSeTax(
+      [
+        { owner: 'taxpayer', seEarnings: 168600, w2SsWages: 0 },
+        { owner: 'spouse', seEarnings: 168600, w2SsWages: 0 },
+      ],
+      'single',
+      168600,
+    );
+    expect(out.seTax).toBeGreaterThan(nonMfj.seTax);
+    // Deduction is exactly half.
+    expect(out.seTaxDeduction * 2).toBeCloseTo(out.seTax, 2);
+  });
+
+  it('drops a negative seEarnings entry (Math.max clamp)', () => {
+    // One spouse profits, the other has a loss. The loss clamps to 0 and
+    // doesn't offset the profiting spouse's SS base.
+    const clamped = computeSeTax(
+      [
+        { owner: 'taxpayer', seEarnings: 100000, w2SsWages: 0 },
+        { owner: 'spouse', seEarnings: -50000, w2SsWages: 0 },
+      ],
+      'mfj',
+      168600,
+    );
+    const profitOnly = computeSeTax(
+      [{ owner: 'taxpayer', seEarnings: 100000, w2SsWages: 0 }],
+      'mfj',
+      168600,
+    );
+    expect(clamped.seTax).toBeCloseTo(profitOnly.seTax, 2);
+  });
+
+  it('legacy overload negative SE earnings returns zero SE tax', () => {
+    expect(computeSeTax(-10000, 0, 168600)).toEqual({ seTax: 0, seTaxDeduction: 0 });
+  });
+
+  it('legacy overload negative w2SsWages clamp: same ceiling as 0 w2SsWages', () => {
+    const withNeg = computeSeTax(50000, -1000, 168600);
+    const withZero = computeSeTax(50000, 0, 168600);
+    expect(withNeg.seTax).toBeCloseTo(withZero.seTax, 2);
+  });
+
+  it('legacy overload: zero SE earnings returns exactly zero', () => {
+    expect(computeSeTax(0, 0, 168600)).toEqual({ seTax: 0, seTaxDeduction: 0 });
+  });
+
+  it('legacy overload: income factor applied before SS/Medicare', () => {
+    // seEarnings × 0.9235 = netSe; then × (0.124 + 0.029) = 15.3% of netSe
+    // when under the SS cap.
+    const out = computeSeTax(10000, 0, 168600);
+    const expectedNet = 10000 * 0.9235;
+    const expectedTax = expectedNet * (0.124 + 0.029);
+    expect(out.seTax).toBeCloseTo(expectedTax, 1);
+  });
+
+  it('per-owner non-MFJ collapses to single ceiling regardless of tag', () => {
+    // Both entries tagged 'spouse' — filing status `single` treats them
+    // as one taxpayer (one ceiling).
+    const out = computeSeTax(
+      [
+        { owner: 'spouse', seEarnings: 100000, w2SsWages: 0 },
+        { owner: 'spouse', seEarnings: 100000, w2SsWages: 0 },
+      ],
+      'single',
+      168600,
+    );
+    // Aggregated to 200000 net SE, capped at 168600 for SS.
+    const aggregate = computeSeTax(200000, 0, 168600);
+    expect(out.seTax).toBeCloseTo(aggregate.seTax, 2);
+  });
+
+  it('w2SsWages reduces the SS ceiling dollar-for-dollar', () => {
+    const outNoWages = computeSeTax(100000, 0, 168600);
+    const outFull = computeSeTax(100000, 168600, 168600);
+    // Full W-2 SS wages → no SS base remaining → only Medicare portion applies.
+    const netSe = 100000 * 0.9235;
+    const onlyMedicare = Math.round(netSe * 0.029 * 100) / 100;
+    expect(outFull.seTax).toBeCloseTo(onlyMedicare, 1);
+    expect(outNoWages.seTax).toBeGreaterThan(outFull.seTax);
+  });
+
+  it('custom SeTaxConstants override default rates', () => {
+    const out = computeSeTax(10000, 0, 168600, {
+      ssRate: 0.10,
+      medicareRate: 0.02,
+      incomeFactor: 1.0,
+    });
+    // Net SE = 10000 × 1.0 = 10000. SS = 10000 × 0.10 = 1000. Medicare = 10000 × 0.02 = 200.
+    expect(out.seTax).toBeCloseTo(1200, 1);
+  });
+});
+
+describe('computeEarlyWithdrawalPenalty — boundary cases', () => {
+  it('zero taxable amount (valid code 1) produces zero penalty', () => {
+    const items: RetirementIncome[] = [
+      {
+        id: 'r', payer: 'X', grossDistribution: 0, taxableAmount: 0,
+        federalWithheld: 0, stateWithheld: 0,
+        distributionCode: '1', isIra: true, isRoth: false,
+        exceptionCode: null, taxableAmountNotDetermined: false,
+      },
+    ];
+    expect(computeEarlyWithdrawalPenalty(items)).toBe(0);
+  });
+
+  it('multiple rows sum their penalties', () => {
+    const items: RetirementIncome[] = [
+      {
+        id: 'r1', payer: 'A', grossDistribution: 5000, taxableAmount: 5000,
+        federalWithheld: 0, stateWithheld: 0,
+        distributionCode: '1', isIra: true, isRoth: false,
+        exceptionCode: null, taxableAmountNotDetermined: false,
+      },
+      {
+        id: 'r2', payer: 'B', grossDistribution: 3000, taxableAmount: 3000,
+        federalWithheld: 0, stateWithheld: 0,
+        distributionCode: '1', isIra: true, isRoth: false,
+        exceptionCode: null, taxableAmountNotDetermined: false,
+      },
+    ];
+    expect(computeEarlyWithdrawalPenalty(items)).toBe(800);
+  });
+
+  it('negative taxable amount clamps to zero', () => {
+    const items: RetirementIncome[] = [
+      {
+        id: 'r', payer: 'X', grossDistribution: 5000, taxableAmount: -100,
+        federalWithheld: 0, stateWithheld: 0,
+        distributionCode: '1', isIra: true, isRoth: false,
+        exceptionCode: null, taxableAmountNotDetermined: false,
+      },
+    ];
+    expect(computeEarlyWithdrawalPenalty(items)).toBe(0);
+  });
+
+  it('invalid exception code (not in 01..12) does not suppress penalty', () => {
+    const items: RetirementIncome[] = [
+      {
+        id: 'r', payer: 'X', grossDistribution: 10000, taxableAmount: 10000,
+        federalWithheld: 0, stateWithheld: 0,
+        distributionCode: '1', isIra: true, isRoth: false,
+        exceptionCode: '99',
+        taxableAmountNotDetermined: false,
+      },
+    ];
+    expect(computeEarlyWithdrawalPenalty(items)).toBe(1000);
+  });
+});

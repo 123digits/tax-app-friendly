@@ -3,7 +3,7 @@
   "packageManager": "npm",
   "testRunner": "vitest",
   "reporters": ["progress", "clear-text", "html"],
-  "coverageAnalysis": "perTest",
+  "coverageAnalysis": "all",
   "mutate": [
     "server/services/tax/taxComputation.ts",
     "server/services/tax/otherTaxes.ts",
