@@ -218,12 +218,31 @@ describe('2FA verify / resend and /me', () => {
   });
 
   it('/me with session whose user is gone returns 401', async () => {
-    const user = await createUser();
-    const cookies = await loginAs(app, user);
+    // Users FK cascades to sessions, so forge a ghost session the same way
+    // we do for the 2FA-resend test: drop + recreate the FK around the
+    // manipulation.
     const db = await getDb();
-    await db.query('DELETE FROM users WHERE id = $1', [user.id]);
-    const res = await request(app).get('/api/auth/me').set('Cookie', cookies);
-    expect(res.status).toBe(401);
+    const { randomTokenHex, sha256Hex, newId } = await import('../services/crypto.js');
+    const ghostId = newId();
+    const token = randomTokenHex(32);
+    const sessionId = sha256Hex(token);
+    const expires = new Date(Date.now() + 60 * 1000).toISOString();
+    await db.exec(`ALTER TABLE sessions DROP CONSTRAINT sessions_user_id_fkey`);
+    try {
+      await db.query(
+        `INSERT INTO sessions (id, user_id, kind, expires_at) VALUES ($1,$2,'session',$3)`,
+        [sessionId, ghostId, expires],
+      );
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', [`session=${token}`]);
+      expect(res.status).toBe(401);
+    } finally {
+      await db.query('DELETE FROM sessions WHERE id = $1', [sessionId]);
+      await db.exec(
+        `ALTER TABLE sessions ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`,
+      );
+    }
   });
 
   it('logout clears cookies', async () => {

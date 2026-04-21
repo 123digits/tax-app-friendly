@@ -183,6 +183,43 @@ describe('admin /users and /users/:id/admin', () => {
     expect(res2.status).toBe(200);
   });
 
+  it('validates body for PUT /users/:id/admin', async () => {
+    const { cookies } = await adminCookies();
+    const res = await request(app)
+      .put('/api/admin/users/abc/admin')
+      .set('Cookie', cookies)
+      .send({ isAdmin: 'not-a-bool' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('validation_failed');
+  });
+
+  it('validates body for POST /tax-years', async () => {
+    const { cookies } = await adminCookies();
+    const res = await request(app)
+      .post('/api/admin/tax-years')
+      .set('Cookie', cookies)
+      .send({ taxYear: 'not-a-year' });
+    expect(res.status).toBe(400);
+  });
+
+  it('validates body for PUT /tax-years/:year', async () => {
+    const { cookies } = await adminCookies();
+    const res = await request(app)
+      .put('/api/admin/tax-years/2025')
+      .set('Cookie', cookies)
+      .send({ notes: 'not a full config' });
+    expect(res.status).toBe(400);
+  });
+
+  it('validates body for POST /tax-years/clone', async () => {
+    const { cookies } = await adminCookies();
+    const res = await request(app)
+      .post('/api/admin/tax-years/clone')
+      .set('Cookie', cookies)
+      .send({ sourceYear: 'x' });
+    expect(res.status).toBe(400);
+  });
+
   it('refuses to demote the last admin', async () => {
     // Use a unique data setup: make sure only one admin exists.
     const db = await getDb();
