@@ -23,6 +23,14 @@ export default defineConfig({
   },
   test: {
     fileParallelism: false,
+    // Run every test file in the same worker thread so all of them share one
+    // PGlite singleton. Without `singleThread: true`, vitest's default is to
+    // spawn a new worker per file, each of which calls `runMigrations()` and
+    // opens its own PGlite handle on the same on-disk data dir — the WASM
+    // layer then crashes with `Aborted()`. This also keeps Stryker stable
+    // since it wraps vitest in its own child-process harness that can't
+    // tolerate the thread/fork churn.
+    poolOptions: { threads: { singleThread: true } },
     environment: 'jsdom',
     environmentMatchGlobs: [
       ['server/**', 'node'],

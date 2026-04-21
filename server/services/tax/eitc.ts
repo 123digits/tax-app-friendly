@@ -24,18 +24,6 @@ import type {
 } from '../../../shared/types.js';
 import { round } from './taxComputation.js';
 
-function zeros(): ComputedEitc {
-  return {
-    qualifyingChildren: 0,
-    earnedIncome: 0,
-    investmentIncome: 0,
-    disqualifiedByInvestment: false,
-    phaseInAmount: 0,
-    phaseOutAmount: 0,
-    credit: 0,
-  };
-}
-
 export function computeEitc(
   input: EitcEligibility | undefined,
   dependents: Dependent[] | undefined,
@@ -51,88 +39,80 @@ export function computeEitc(
   eitcTable: Record<FilingStatus, Record<string, EitcRow>> | undefined,
   investmentIncomeLimit?: number,
 ): ComputedEitc {
-  const limit = investmentIncomeLimit ?? 11950;
-  // MFS is ineligible (TCJA separated-spouse carve-out not modeled in MVP).
-  if (filingStatus === 'mfs') return zeros();
-  if (!eitcTable) return zeros();
-
-  // Qualifying children (capped at 3 — the EITC table tops out at "3+").
+  // --- Step 1: qualifying children (before any early-return path). ---
+  const override = input?.qualifyingChildrenOverride;
   const autoKids = (dependents ?? []).filter((d) => d.isQualifyingChild).length;
-  const qcRaw =
-    input?.qualifyingChildrenOverride != null
-      ? Math.max(0, Math.floor(input.qualifyingChildrenOverride))
-      : autoKids;
-  const qualifyingChildren = Math.min(3, qcRaw);
+  const qualifyingChildren = Math.min(
+    3,
+    override != null ? Math.max(0, Math.floor(override)) : autoKids,
+  );
 
-  // Investment income test.
-  const computedInvestment =
-    Math.max(0, interestIncome) +
-    Math.max(0, ordinaryDividends) +
-    Math.max(0, netCapitalGain) +
-    Math.max(0, royalties) +
-    Math.max(0, rentalPassiveIncome);
-  const investmentIncome =
+  // --- Step 2: investment income. ---
+  const investmentIncome = round(
     input?.investmentIncomeOverride != null
       ? Math.max(0, input.investmentIncomeOverride)
-      : computedInvestment;
-  if (investmentIncome > limit) {
-    return {
-      ...zeros(),
-      qualifyingChildren,
-      investmentIncome: round(investmentIncome),
-      disqualifiedByInvestment: true,
-    };
-  }
+      : Math.max(0, interestIncome) +
+        Math.max(0, ordinaryDividends) +
+        Math.max(0, netCapitalGain) +
+        Math.max(0, royalties) +
+        Math.max(0, rentalPassiveIncome),
+  );
 
-  // Earned income (with optional combat-pay election per §32(c)(2)(B)(vi)).
-  let earnedIncome = Math.max(0, w2Wages) + Math.max(0, seNetEarnings);
-  if (input?.includeCombatPay) {
-    earnedIncome += Math.max(0, input.combatPayAmount);
-  }
+  // --- Step 3: earned income (W-2 + SE + optional combat-pay election). ---
+  const combatPay = input?.includeCombatPay ? Math.max(0, input.combatPayAmount) : 0;
+  const earnedIncome = round(
+    Math.max(0, w2Wages) + Math.max(0, seNetEarnings) + combatPay,
+  );
 
-  // Age test for childless filers (25-64). MVP approximates via a single
-  // user-facing toggle; exact age and spouse-age checks deferred.
-  if (qualifyingChildren === 0 && !input?.isEligibleAge) {
-    return {
-      ...zeros(),
-      qualifyingChildren,
-      earnedIncome: round(earnedIncome),
-      investmentIncome: round(investmentIncome),
-    };
-  }
-
-  // Look up the tier row.
+  // --- Step 4: eligibility flags. ---
+  const limit = investmentIncomeLimit ?? 11950;
+  const disqualifiedByInvestment = investmentIncome > limit;
+  const isMfs = filingStatus === 'mfs';
+  const hasTable = !!eitcTable;
+  const childlessButIneligibleAge =
+    qualifyingChildren === 0 && input?.isEligibleAge !== true;
   const row = eitcTable?.[filingStatus]?.[String(qualifyingChildren)];
-  if (!row) {
+
+  // Any of these means the credit is 0 — the intermediate fields still
+  // surface on the response though.
+  const ineligible =
+    isMfs || !hasTable || disqualifiedByInvestment ||
+    childlessButIneligibleAge || !row;
+
+  // MFS and "no table" skip exposing kids / earned income for parity with
+  // the statute: MFS is fully ineligible and does not "have" EITC-qualifying
+  // children in the §32 sense.
+  const surfaceKids = isMfs || !hasTable ? 0 : qualifyingChildren;
+  const surfaceEarned = isMfs || !hasTable || disqualifiedByInvestment ? 0 : earnedIncome;
+  const surfaceInvestment = isMfs || !hasTable ? 0 : investmentIncome;
+
+  if (ineligible) {
     return {
-      ...zeros(),
-      qualifyingChildren,
-      earnedIncome: round(earnedIncome),
-      investmentIncome: round(investmentIncome),
+      qualifyingChildren: surfaceKids,
+      earnedIncome: surfaceEarned,
+      investmentIncome: surfaceInvestment,
+      disqualifiedByInvestment,
+      phaseInAmount: 0,
+      phaseOutAmount: 0,
+      credit: 0,
     };
   }
 
-  // Phase-in: rate × earned income, capped at maxCredit.
+  // --- Step 5: phase-in / phase-out math. ---
   const phaseInAmountRaw = Math.min(row.maxCredit, earnedIncome * row.phaseInRate);
-
   // Phase-out measure = larger of earned income and AGI (per §32(a)(2)).
   const measure = Math.max(earnedIncome, Math.max(0, agi));
-
-  // Phase-out reduction.
   const phaseOutAmountRaw =
     measure > row.phaseOutStart
       ? (measure - row.phaseOutStart) * row.phaseOutRate
       : 0;
-
-  // Above maxAgi the credit is fully zero.
-  const creditRaw = measure > row.maxAgi
-    ? 0
-    : Math.max(0, phaseInAmountRaw - phaseOutAmountRaw);
+  const creditRaw =
+    measure > row.maxAgi ? 0 : Math.max(0, phaseInAmountRaw - phaseOutAmountRaw);
 
   return {
     qualifyingChildren,
-    earnedIncome: round(earnedIncome),
-    investmentIncome: round(investmentIncome),
+    earnedIncome,
+    investmentIncome,
     disqualifiedByInvestment: false,
     phaseInAmount: round(phaseInAmountRaw),
     phaseOutAmount: round(phaseOutAmountRaw),

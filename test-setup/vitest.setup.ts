@@ -1,5 +1,20 @@
 // Shared test environment setup.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+// Route PGlite to a fresh, process-scoped tmp directory so every run starts
+// with an empty store. Without this, Stryker runs all test files through a
+// single sandbox whose persisted `./data` directory eventually corrupts the
+// Emscripten WASM layer (`Aborted()`), and even the normal vitest run can
+// leak state between sessions.
+if (!process.env.DATA_DIR) {
+  const tag = `tax-app-test-${process.pid}-${Date.now().toString(36)}`;
+  const dir = path.join(os.tmpdir(), tag);
+  fs.mkdirSync(dir, { recursive: true });
+  process.env.DATA_DIR = dir;
+}
 
 // Deterministic dev encryption key so encryptField/decryptField work in tests.
 if (!process.env.DATA_ENCRYPTION_KEY || process.env.DATA_ENCRYPTION_KEY.length !== 64) {

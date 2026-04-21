@@ -379,4 +379,248 @@ describe('computeEitc', () => {
     // credit = max(0, 6600 - 5896.80) = 703.20.
     expect(r.credit).toBeCloseTo(703.2, 1);
   });
+
+  // --- Deep field-level assertions (kill BooleanLiteral / string / number mutants) ---
+
+  it('all fields of the zero return are exactly zero on mfs', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'mfs', 30000, 30000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r).toEqual({
+      qualifyingChildren: 0,
+      earnedIncome: 0,
+      investmentIncome: 0,
+      disqualifiedByInvestment: false,
+      phaseInAmount: 0,
+      phaseOutAmount: 0,
+      credit: 0,
+    });
+  });
+
+  it('disqualified-by-investment return has exact shape (kills BooleanLiteral)', () => {
+    const deps = [qcDep('a')];
+    const r = computeEitc(
+      {
+        qualifyingChildrenOverride: null, investmentIncomeOverride: 999999,
+        isEligibleAge: true, includeCombatPay: false, combatPayAmount: 0,
+      },
+      deps,
+      'single',
+      20000,
+      20000,
+      0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(r.disqualifiedByInvestment).toBe(true);
+    expect(r.qualifyingChildren).toBe(1);
+    expect(r.investmentIncome).toBe(999999);
+    expect(r.credit).toBe(0);
+    expect(r.phaseInAmount).toBe(0);
+    expect(r.phaseOutAmount).toBe(0);
+    expect(r.earnedIncome).toBe(0);
+  });
+
+  it('childless-but-ineligible-age return has exact shape (kills all-false-branch mutants)', () => {
+    const r = computeEitc(
+      {
+        qualifyingChildrenOverride: null,
+        investmentIncomeOverride: null,
+        isEligibleAge: false,
+        includeCombatPay: false,
+        combatPayAmount: 0,
+      },
+      EMPTY_DEPS,
+      'single',
+      5000,
+      5000,
+      0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(r.qualifyingChildren).toBe(0);
+    expect(r.earnedIncome).toBe(5000);
+    expect(r.credit).toBe(0);
+    expect(r.disqualifiedByInvestment).toBe(false);
+  });
+
+  it('no eitcTable yields full zeros', () => {
+    const r = computeEitc(base(), [qcDep('a')], 'single', 20000, 20000, 0, 0, 0, 0, 0, 0, undefined);
+    expect(r).toEqual({
+      qualifyingChildren: 0,
+      earnedIncome: 0,
+      investmentIncome: 0,
+      disqualifiedByInvestment: false,
+      phaseInAmount: 0,
+      phaseOutAmount: 0,
+      credit: 0,
+    });
+  });
+
+  it('successful credit has all expected fields populated correctly', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 20000, 20000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r).toEqual({
+      qualifyingChildren: 2,
+      earnedIncome: 20000,
+      investmentIncome: 0,
+      disqualifiedByInvestment: false,
+      phaseInAmount: 6600,  // capped at maxCredit
+      phaseOutAmount: 0,    // AGI < phaseOutStart
+      credit: 6600,
+    });
+  });
+
+  it('combat-pay election adds to earned income only when includeCombatPay is true', () => {
+    const withToggle = computeEitc(
+      base({ includeCombatPay: true, combatPayAmount: 2000 }),
+      EMPTY_DEPS,
+      'single',
+      3000, 3000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    const withoutToggle = computeEitc(
+      base({ includeCombatPay: false, combatPayAmount: 2000 }),  // amount ignored
+      EMPTY_DEPS,
+      'single',
+      3000, 3000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(withToggle.earnedIncome).toBe(5000);
+    expect(withoutToggle.earnedIncome).toBe(3000);
+  });
+
+  it('undefined input still yields a sensible childless zero-age-ineligible response', () => {
+    const r = computeEitc(
+      undefined,
+      EMPTY_DEPS,
+      'single',
+      5000, 5000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    // No `input` means isEligibleAge is undefined → treated as not eligible
+    // (strict `!== true` check) → credit zero for childless.
+    expect(r.credit).toBe(0);
+    expect(r.qualifyingChildren).toBe(0);
+    expect(r.earnedIncome).toBe(5000);
+  });
+
+  it('exact zero-value inputs do not trigger phase-out', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 0, 0, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.credit).toBe(0);
+    expect(r.phaseInAmount).toBe(0);
+    expect(r.phaseOutAmount).toBe(0);
+  });
+
+  it('fractional qualifyingChildrenOverride is floored', () => {
+    const r = computeEitc(
+      { qualifyingChildrenOverride: 2.9, investmentIncomeOverride: null,
+        isEligibleAge: true, includeCombatPay: false, combatPayAmount: 0 },
+      EMPTY_DEPS,
+      'single',
+      20000, 20000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(r.qualifyingChildren).toBe(2);
+  });
+
+  it('negative qualifyingChildrenOverride clamps to 0', () => {
+    const r = computeEitc(
+      { qualifyingChildrenOverride: -5, investmentIncomeOverride: null,
+        isEligibleAge: true, includeCombatPay: false, combatPayAmount: 0 },
+      [qcDep('a'), qcDep('b')],
+      'single',
+      20000, 20000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+    );
+    // Override wins → 0 kids → childless row, but isEligibleAge=true so proceeds
+    expect(r.qualifyingChildren).toBe(0);
+  });
+
+  it('measure above maxAgi returns zero credit even though phase-in was positive', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    // Earned income in plateau, AGI beyond maxAgi (55000).
+    const r = computeEitc(base(), deps, 'single', 100000, 20000, 0, 0, 0, 0, 0, 0, makeTable());
+    expect(r.credit).toBe(0);
+    // But phaseInAmount is still reported (the raw pre-phaseout value).
+    expect(r.phaseInAmount).toBe(6600);
+  });
+
+  it('auto-computes investment from interest only (kills arithmetic-operator on sum)', () => {
+    const r = computeEitc(
+      base(),
+      EMPTY_DEPS,
+      'single',
+      5000, 5000,
+      0,
+      50, 0, 0, 0, 0,
+      makeTable(),
+    );
+    expect(r.investmentIncome).toBe(50);
+  });
+
+  it('auto-computes investment from ordinary dividends only', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'single', 5000, 5000, 0, 0, 77, 0, 0, 0, makeTable());
+    expect(r.investmentIncome).toBe(77);
+  });
+
+  it('auto-computes investment from royalties only', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'single', 5000, 5000, 0, 0, 0, 0, 33, 0, makeTable());
+    expect(r.investmentIncome).toBe(33);
+  });
+
+  it('auto-computes investment from rental passive income only', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'single', 5000, 5000, 0, 0, 0, 0, 0, 88, makeTable());
+    expect(r.investmentIncome).toBe(88);
+  });
+
+  it('auto-computes investment from net capital gain only', () => {
+    const r = computeEitc(base(), EMPTY_DEPS, 'single', 5000, 5000, 0, 0, 0, 44, 0, 0, makeTable());
+    expect(r.investmentIncome).toBe(44);
+  });
+
+  it('investment exactly at limit is not disqualifying (<=, not <)', () => {
+    const r = computeEitc(
+      base(),
+      EMPTY_DEPS,
+      'single',
+      5000, 5000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+      11950, // default limit
+    );
+    const atLimit = computeEitc(
+      { qualifyingChildrenOverride: null, investmentIncomeOverride: 11950,
+        isEligibleAge: true, includeCombatPay: false, combatPayAmount: 0 },
+      EMPTY_DEPS,
+      'single',
+      5000, 5000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+      11950,
+    );
+    expect(r.disqualifiedByInvestment).toBe(false);
+    expect(atLimit.disqualifiedByInvestment).toBe(false);
+    // At one dollar above, disqualified.
+    const overLimit = computeEitc(
+      { qualifyingChildrenOverride: null, investmentIncomeOverride: 11951,
+        isEligibleAge: true, includeCombatPay: false, combatPayAmount: 0 },
+      EMPTY_DEPS,
+      'single',
+      5000, 5000, 0, 0, 0, 0, 0, 0,
+      makeTable(),
+      11950,
+    );
+    expect(overLimit.disqualifiedByInvestment).toBe(true);
+  });
+
+  it('phaseInAmount capped exactly at maxCredit (min branch)', () => {
+    // Earned income × phaseInRate > maxCredit → cap kicks in.
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 20000, 30000, 0, 0, 0, 0, 0, 0, makeTable());
+    // phaseIn raw = 30000 × 0.4 = 12000 > 6600 → capped at 6600.
+    expect(r.phaseInAmount).toBe(6600);
+  });
+
+  it('phaseInAmount below maxCredit (min branch other side)', () => {
+    const deps = [qcDep('a'), qcDep('b')];
+    const r = computeEitc(base(), deps, 'single', 5000, 5000, 0, 0, 0, 0, 0, 0, makeTable());
+    // 5000 × 0.4 = 2000 < 6600 → phaseIn = 2000.
+    expect(r.phaseInAmount).toBe(2000);
+  });
 });
