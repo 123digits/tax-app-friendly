@@ -31,7 +31,8 @@ const CONSTANTS: Schedule8812ConstantsSubset = {
   },
 };
 
-function dep(isQc: boolean, id = Math.random().toString()): Dependent {
+let depCounter = 0;
+function dep(isQc: boolean, id = `dep-${++depCounter}`): Dependent {
   return {
     id,
     name: `Dep ${id}`,

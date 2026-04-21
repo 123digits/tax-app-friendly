@@ -30,6 +30,9 @@ export async function createUser(opts: { isAdmin?: boolean; emailVerified?: bool
   const id = newId();
   const username = `user_${id.slice(0, 8)}`;
   const email = `${username}@example.com`;
+  // Fixture credential for throwaway test users; never a real secret and
+  // never leaves the in-memory test DB.
+  // eslint-disable-next-line sonarjs/no-hardcoded-passwords
   const password = 'testpw12345';
   const hash = await hashPassword(password);
   await db.query(
@@ -40,8 +43,11 @@ export async function createUser(opts: { isAdmin?: boolean; emailVerified?: bool
   return { id, username, email, password, isAdmin: !!opts.isAdmin };
 }
 
-export async function loginAs(app: Express, user: TestUser): Promise<string[]> {
-  // Bypass 2FA by directly inserting a session.
+// `app` is accepted for API parity with other helpers (callers pass their
+// booted app so fixtures can later switch to going through supertest instead
+// of direct DB seeding); the current implementation short-circuits via the
+// DB.
+export async function loginAs(_app: Express, user: TestUser): Promise<string[]> {
   const { randomTokenHex, sha256Hex } = await import('../services/crypto.js');
   const token = randomTokenHex(32);
   const sessionId = sha256Hex(token);
@@ -51,7 +57,6 @@ export async function loginAs(app: Express, user: TestUser): Promise<string[]> {
     `INSERT INTO sessions (id, user_id, kind, expires_at) VALUES ($1,$2,'session',$3)`,
     [sessionId, user.id, expires],
   );
-  void app;
   return [`session=${token}; Path=/; HttpOnly`];
 }
 

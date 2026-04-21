@@ -11,6 +11,12 @@ beforeAll(async () => {
   app = await bootstrap();
 });
 
+function toCookieArray(setCookie: string | string[] | undefined): string[] {
+  if (Array.isArray(setCookie)) return setCookie;
+  if (setCookie) return [setCookie];
+  return [];
+}
+
 describe('POST /api/auth/register', () => {
   it('creates a user and returns ok', async () => {
     const unique = Date.now().toString(36);
@@ -105,7 +111,7 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(200);
     expect(res.body.twoFactorRequired).toBe(true);
     const setCookie = res.headers['set-cookie'];
-    const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+    const cookies = toCookieArray(setCookie);
     expect(cookies.some((c: string) => c.startsWith('pending_session='))).toBe(true);
   });
 

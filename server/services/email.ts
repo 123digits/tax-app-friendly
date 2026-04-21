@@ -15,7 +15,10 @@ function getTransporter(): Transporter {
         : undefined,
     });
   } else {
-    // Dev transport: streams to stdout. jsonTransport avoids actually sending.
+    // Dev transport: streams to stdout. jsonTransport avoids actually sending
+    // any network mail, so the "clear-text protocol" sonar finding here is a
+    // false positive — no transport is negotiated at all.
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols
     transporter = nodemailer.createTransport({ jsonTransport: true });
   }
   return transporter;

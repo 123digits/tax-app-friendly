@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "mutate": "stryker run"
+    "mutate": "stryker run",
+    "sonar": "sonar-scanner",
+    "dup": "jscpd --config .jscpdrc.json"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.0",
@@ -44,10 +46,13 @@
     "@vue/test-utils": "^2.4.6",
     "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
+    "eslint-plugin-sonarjs": "^4.0.3",
     "eslint-plugin-vue": "^9.33.0",
     "fast-check": "^4.7.0",
     "globals": "^15.15.0",
+    "jscpd": "^4.0.9",
     "jsdom": "^29.0.2",
+    "sonarqube-scanner": "^4.3.6",
     "supertest": "^7.2.2",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",

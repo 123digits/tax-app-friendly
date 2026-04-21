@@ -129,12 +129,14 @@ function normalizeBrackets(list: TaxBracket[]): TaxBracket[] {
     .map((b) => ({ upTo: Number(b.upTo), rate: Number(b.rate) }))
     .sort((a, b) => (a.upTo as number) - (b.upTo as number));
   const unbounded = list.filter((b) => b.upTo === null || b.upTo === undefined);
-  const topRate = unbounded.length
-    ? Number(unbounded[unbounded.length - 1].rate)
-    : bounded.length
-    ? bounded[bounded.length - 1].rate
-    : 0;
+  const topRate = pickTopRate(unbounded, bounded);
   return [...bounded, { upTo: null, rate: topRate }];
+}
+
+function pickTopRate(unbounded: TaxBracket[], bounded: TaxBracket[]): number {
+  if (unbounded.length) return Number(unbounded[unbounded.length - 1].rate);
+  if (bounded.length) return bounded[bounded.length - 1].rate;
+  return 0;
 }
 
 async function save() {

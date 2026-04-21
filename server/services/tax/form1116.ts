@@ -67,7 +67,7 @@ export function computeForm1116(
 ): ComputedForm1116 {
   if (!baskets || baskets.length === 0)
     return { perBasket: [], total: 0, htkoApplied: false };
-  if (!(usTax > 0) || !(totalTaxableIncome > 0)) return EMPTY;
+  if (usTax <= 0 || totalTaxableIncome <= 0) return EMPTY;
 
   const rate = Math.max(0, Number(highestUsRate) || 0) || DEFAULT_HIGHEST_US_RATE;
 

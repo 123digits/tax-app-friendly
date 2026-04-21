@@ -59,10 +59,10 @@ export function cappedEducatorExpenses(
  * Form 2555 total exclusion, so the caller does not need to thread any
  * further Phase-10 plumbing to get correct behavior today.
  *
- * TODO(Phase 10): when §931/§933 possession-income and any additional
- * Schedule 1 predecessor adjustments become modeled, extend `feie` into
- * a richer `addbacks` bag. The call sites below already pass AGI-before-
- * SLI, so the only missing inputs will be those new addbacks.
+ * Future work (Phase 10): when §931/§933 possession-income and any
+ * additional Schedule 1 predecessor adjustments become modeled, extend
+ * `feie` into a richer `addbacks` bag. The call sites below already pass
+ * AGI-before-SLI, so the only missing inputs will be those new addbacks.
  */
 export function computeStudentLoanInterestMagi(
   agiBeforeSli: number,
