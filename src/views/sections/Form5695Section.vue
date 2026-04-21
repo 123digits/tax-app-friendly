@@ -50,22 +50,22 @@ onMounted(async () => {
     centralAc: 0,
     furnaceBoiler: 0,
   };
-  solarElectric.value = f.solarElectric ?? 0;
-  solarWaterHeating.value = f.solarWaterHeating ?? 0;
-  windEnergy.value = f.windEnergy ?? 0;
-  geothermalHeatPump.value = f.geothermalHeatPump ?? 0;
-  biomassFuel.value = f.biomassFuel ?? 0;
-  batteryStorageTech.value = f.batteryStorageTech ?? 0;
-  fuelCellCost.value = f.fuelCellCost ?? 0;
-  fuelCellKw.value = f.fuelCellKw ?? 0;
-  insulationAirSealing.value = f.insulationAirSealing ?? 0;
-  exteriorWindows.value = f.exteriorWindows ?? 0;
-  exteriorDoors.value = f.exteriorDoors ?? 0;
-  homeEnergyAudit.value = f.homeEnergyAudit ?? 0;
-  heatPumps.value = f.heatPumps ?? 0;
-  biomassStoves.value = f.biomassStoves ?? 0;
-  centralAc.value = f.centralAc ?? 0;
-  furnaceBoiler.value = f.furnaceBoiler ?? 0;
+  solarElectric.value = f.solarElectric;
+  solarWaterHeating.value = f.solarWaterHeating;
+  windEnergy.value = f.windEnergy;
+  geothermalHeatPump.value = f.geothermalHeatPump;
+  biomassFuel.value = f.biomassFuel;
+  batteryStorageTech.value = f.batteryStorageTech;
+  fuelCellCost.value = f.fuelCellCost;
+  fuelCellKw.value = f.fuelCellKw;
+  insulationAirSealing.value = f.insulationAirSealing;
+  exteriorWindows.value = f.exteriorWindows;
+  exteriorDoors.value = f.exteriorDoors;
+  homeEnergyAudit.value = f.homeEnergyAudit;
+  heatPumps.value = f.heatPumps;
+  biomassStoves.value = f.biomassStoves;
+  centralAc.value = f.centralAc;
+  furnaceBoiler.value = f.furnaceBoiler;
 });
 
 async function save() {

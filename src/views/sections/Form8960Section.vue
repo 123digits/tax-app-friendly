@@ -23,10 +23,10 @@ onMounted(async () => {
     miscInvestmentExpenses: 0,
     otherModifications: 0,
   };
-  investmentInterestExpense.value = f.investmentInterestExpense ?? 0;
-  stateTaxAllocableToInvestment.value = f.stateTaxAllocableToInvestment ?? 0;
-  miscInvestmentExpenses.value = f.miscInvestmentExpenses ?? 0;
-  otherModifications.value = f.otherModifications ?? 0;
+  investmentInterestExpense.value = f.investmentInterestExpense;
+  stateTaxAllocableToInvestment.value = f.stateTaxAllocableToInvestment;
+  miscInvestmentExpenses.value = f.miscInvestmentExpenses;
+  otherModifications.value = f.otherModifications;
 });
 
 async function save() {

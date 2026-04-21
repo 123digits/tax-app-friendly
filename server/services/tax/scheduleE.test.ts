@@ -22,19 +22,6 @@ describe('rentalNetBeforeLimits', () => {
     const r = rental({ rentsReceived: 12000, expenses: { mortgage: 3000, repairs: 1000 } });
     expect(rentalNetBeforeLimits(r)).toBe(8000);
   });
-
-  it('tolerates missing expenses object and string values', () => {
-    const r = rental({
-      rentsReceived: 'bad' as unknown as number,
-      expenses: { x: 'y' as unknown as number },
-    });
-    expect(rentalNetBeforeLimits(r)).toBe(0);
-  });
-
-  it('defaults expenses to empty when null', () => {
-    const r = rental({ rentsReceived: 500, expenses: null as unknown as Record<string, number> });
-    expect(rentalNetBeforeLimits(r)).toBe(500);
-  });
 });
 
 describe('sumRoyaltyNet', () => {
@@ -44,13 +31,6 @@ describe('sumRoyaltyNet', () => {
       { id: 'r2', source: 'Oil', grossRoyalties: 3000, expenses: 500 },
     ];
     expect(sumRoyaltyNet(rows)).toBe(6500);
-  });
-
-  it('coerces string values to 0', () => {
-    const rows: ScheduleERoyalty[] = [
-      { id: 'r1', source: 'Book', grossRoyalties: 'x' as unknown as number, expenses: 'y' as unknown as number },
-    ];
-    expect(sumRoyaltyNet(rows)).toBe(0);
   });
 });
 

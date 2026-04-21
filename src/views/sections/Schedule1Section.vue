@@ -45,21 +45,21 @@ onMounted(async () => {
     performingArtistExpenses: 0,
     feeBasisExpenses: 0,
   };
-  educatorExpenses.value = s.educatorExpenses ?? 0;
-  hsaDeduction.value = s.hsaDeduction ?? 0;
-  selfEmployedHealthInsurance.value = s.selfEmployedHealthInsurance ?? 0;
-  sepContribution.value = s.sepContribution ?? 0;
-  simpleContribution.value = s.simpleContribution ?? 0;
-  solo401kContribution.value = s.solo401kContribution ?? 0;
-  traditionalIraDeduction.value = s.traditionalIraDeduction ?? 0;
-  studentLoanInterest.value = s.studentLoanInterest ?? 0;
-  penaltyEarlyWithdrawal.value = s.penaltyEarlyWithdrawal ?? 0;
-  alimonyPaid.value = s.alimonyPaid ?? 0;
-  alimonyRecipientSsn.value = s.alimonyRecipientSsn ?? null;
-  alimonyDivorceDate.value = s.alimonyDivorceDate ?? null;
-  reservistExpenses.value = s.reservistExpenses ?? 0;
-  performingArtistExpenses.value = s.performingArtistExpenses ?? 0;
-  feeBasisExpenses.value = s.feeBasisExpenses ?? 0;
+  educatorExpenses.value = s.educatorExpenses;
+  hsaDeduction.value = s.hsaDeduction;
+  selfEmployedHealthInsurance.value = s.selfEmployedHealthInsurance;
+  sepContribution.value = s.sepContribution;
+  simpleContribution.value = s.simpleContribution;
+  solo401kContribution.value = s.solo401kContribution;
+  traditionalIraDeduction.value = s.traditionalIraDeduction;
+  studentLoanInterest.value = s.studentLoanInterest;
+  penaltyEarlyWithdrawal.value = s.penaltyEarlyWithdrawal;
+  alimonyPaid.value = s.alimonyPaid;
+  alimonyRecipientSsn.value = s.alimonyRecipientSsn;
+  alimonyDivorceDate.value = s.alimonyDivorceDate;
+  reservistExpenses.value = s.reservistExpenses;
+  performingArtistExpenses.value = s.performingArtistExpenses;
+  feeBasisExpenses.value = s.feeBasisExpenses;
 });
 
 async function save() {

@@ -5,11 +5,8 @@ import type { ScheduleFFarm } from '../../../shared/types.js';
  *   grossIncome - sum(expenses).
  */
 export function farmNetProfit(f: ScheduleFFarm): number {
-  const expTotal = Object.values(f.expenses || {}).reduce(
-    (a, v) => a + (Number(v) || 0),
-    0
-  );
-  return (Number(f.grossIncome) || 0) - expTotal;
+  const expTotal = Object.values(f.expenses).reduce((a, v) => a + v, 0);
+  return f.grossIncome - expTotal;
 }
 
 /** Aggregate farm net profit across all Sched F farms. */

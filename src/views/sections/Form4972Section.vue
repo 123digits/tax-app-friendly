@@ -23,10 +23,10 @@ onMounted(async () => {
     ordinaryPortion: 0,
     computedTax: 0,
   };
-  qualifyingLumpSum.value = f.qualifyingLumpSum ?? 0;
-  capitalGainPortion.value = f.capitalGainPortion ?? 0;
-  ordinaryPortion.value = f.ordinaryPortion ?? 0;
-  computedTax.value = f.computedTax ?? 0;
+  qualifyingLumpSum.value = f.qualifyingLumpSum;
+  capitalGainPortion.value = f.capitalGainPortion;
+  ordinaryPortion.value = f.ordinaryPortion;
+  computedTax.value = f.computedTax;
 });
 
 async function save() {

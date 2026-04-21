@@ -23,10 +23,10 @@ onMounted(async () => {
     otherAdjustments: 0,
     amtNolCarryforward: 0,
   };
-  privateActivityBondInterest.value = f.privateActivityBondInterest ?? 0;
-  amtDepreciationAdjustment.value = f.amtDepreciationAdjustment ?? 0;
-  otherAdjustments.value = f.otherAdjustments ?? 0;
-  amtNolCarryforward.value = f.amtNolCarryforward ?? 0;
+  privateActivityBondInterest.value = f.privateActivityBondInterest;
+  amtDepreciationAdjustment.value = f.amtDepreciationAdjustment;
+  otherAdjustments.value = f.otherAdjustments;
+  amtNolCarryforward.value = f.amtNolCarryforward;
 });
 
 async function save() {

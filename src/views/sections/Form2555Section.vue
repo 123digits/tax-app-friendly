@@ -27,12 +27,12 @@ onMounted(async () => {
     isBonaFideResident: false,
     usesPhysicalPresence: false,
   };
-  foreignEarnedIncome.value = f.foreignEarnedIncome ?? 0;
-  qualifyingDays.value = f.qualifyingDays ?? 0;
-  totalDaysInPeriod.value = f.totalDaysInPeriod ?? 365;
-  housingExpenses.value = f.housingExpenses ?? 0;
-  isBonaFideResident.value = !!f.isBonaFideResident;
-  usesPhysicalPresence.value = !!f.usesPhysicalPresence;
+  foreignEarnedIncome.value = f.foreignEarnedIncome;
+  qualifyingDays.value = f.qualifyingDays;
+  totalDaysInPeriod.value = f.totalDaysInPeriod;
+  housingExpenses.value = f.housingExpenses;
+  isBonaFideResident.value = f.isBonaFideResident;
+  usesPhysicalPresence.value = f.usesPhysicalPresence;
 });
 
 async function save() {

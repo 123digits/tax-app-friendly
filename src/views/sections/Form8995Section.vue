@@ -31,11 +31,16 @@ function emptyActivity(): ActivityRow {
 
 onMounted(async () => {
   if (!taxStore.data) await taxStore.load();
-  const f = taxStore.data?.form8995;
-  activities.value = (f?.activities ?? []).map((a) => ({ ...a }));
-  reitPtpDividends.value = f?.reitPtpDividends ?? 0;
-  priorYearQbiLossCarry.value = f?.priorYearQbiLossCarry ?? 0;
-  priorYearReitPtpLossCarry.value = f?.priorYearReitPtpLossCarry ?? 0;
+  const f = taxStore.data?.form8995 ?? {
+    activities: [],
+    reitPtpDividends: 0,
+    priorYearQbiLossCarry: 0,
+    priorYearReitPtpLossCarry: 0,
+  };
+  activities.value = f.activities.map((a) => ({ ...a }));
+  reitPtpDividends.value = f.reitPtpDividends;
+  priorYearQbiLossCarry.value = f.priorYearQbiLossCarry;
+  priorYearReitPtpLossCarry.value = f.priorYearReitPtpLossCarry;
 });
 
 function addActivity() {

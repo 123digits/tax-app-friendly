@@ -31,11 +31,11 @@ onMounted(async () => {
     spouseEarnedIncome: 0,
     employerProvidedBenefits: 0,
   };
-  totalQualifiedExpenses.value = f.totalQualifiedExpenses ?? 0;
-  numQualifyingPersons.value = f.numQualifyingPersons ?? 0;
-  taxpayerEarnedIncome.value = f.taxpayerEarnedIncome ?? 0;
-  spouseEarnedIncome.value = f.spouseEarnedIncome ?? 0;
-  employerProvidedBenefits.value = f.employerProvidedBenefits ?? 0;
+  totalQualifiedExpenses.value = f.totalQualifiedExpenses;
+  numQualifyingPersons.value = f.numQualifyingPersons;
+  taxpayerEarnedIncome.value = f.taxpayerEarnedIncome;
+  spouseEarnedIncome.value = f.spouseEarnedIncome;
+  employerProvidedBenefits.value = f.employerProvidedBenefits;
 });
 
 async function save() {

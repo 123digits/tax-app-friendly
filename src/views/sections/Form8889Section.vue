@@ -33,12 +33,12 @@ onMounted(async () => {
     qualifiedMedicalExpenses: 0,
     isDisabledOrOver65: false,
   };
-  coverage.value = f.coverage ?? 'none';
-  contributions.value = f.contributions ?? 0;
-  isCatchUpEligible.value = f.isCatchUpEligible ?? false;
-  distributions.value = f.distributions ?? 0;
-  qualifiedMedicalExpenses.value = f.qualifiedMedicalExpenses ?? 0;
-  isDisabledOrOver65.value = f.isDisabledOrOver65 ?? false;
+  coverage.value = f.coverage;
+  contributions.value = f.contributions;
+  isCatchUpEligible.value = f.isCatchUpEligible;
+  distributions.value = f.distributions;
+  qualifiedMedicalExpenses.value = f.qualifiedMedicalExpenses;
+  isDisabledOrOver65.value = f.isDisabledOrOver65;
 });
 
 async function save() {

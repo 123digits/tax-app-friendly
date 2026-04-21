@@ -25,11 +25,11 @@ onMounted(async () => {
     spouseIraContributions: 0,
     distributionsReceived: 0,
   };
-  elective401kDeferrals.value = f.elective401kDeferrals ?? 0;
-  iraContributions.value = f.iraContributions ?? 0;
-  spouseElective401kDeferrals.value = f.spouseElective401kDeferrals ?? 0;
-  spouseIraContributions.value = f.spouseIraContributions ?? 0;
-  distributionsReceived.value = f.distributionsReceived ?? 0;
+  elective401kDeferrals.value = f.elective401kDeferrals;
+  iraContributions.value = f.iraContributions;
+  spouseElective401kDeferrals.value = f.spouseElective401kDeferrals;
+  spouseIraContributions.value = f.spouseIraContributions;
+  distributionsReceived.value = f.distributionsReceived;
 });
 
 async function save() {

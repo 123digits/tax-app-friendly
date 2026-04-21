@@ -27,12 +27,12 @@ onMounted(async () => {
     disabilityIncome: 0,
     nontaxableSsAndPension: 0,
   };
-  isTaxpayerEligible.value = f.isTaxpayerEligible ?? false;
-  isSpouseEligible.value = f.isSpouseEligible ?? false;
-  taxpayerUnder65Disabled.value = f.taxpayerUnder65Disabled ?? false;
-  spouseUnder65Disabled.value = f.spouseUnder65Disabled ?? false;
-  disabilityIncome.value = f.disabilityIncome ?? 0;
-  nontaxableSsAndPension.value = f.nontaxableSsAndPension ?? 0;
+  isTaxpayerEligible.value = f.isTaxpayerEligible;
+  isSpouseEligible.value = f.isSpouseEligible;
+  taxpayerUnder65Disabled.value = f.taxpayerUnder65Disabled;
+  spouseUnder65Disabled.value = f.spouseUnder65Disabled;
+  disabilityIncome.value = f.disabilityIncome;
+  nontaxableSsAndPension.value = f.nontaxableSsAndPension;
 });
 
 async function save() {

@@ -25,11 +25,11 @@ onMounted(async () => {
     federalIncomeTaxWithheld: 0,
     stateUnemploymentPaid: 0,
   };
-  cashWagesSsMedicare.value = f.cashWagesSsMedicare ?? 0;
-  cashWagesFuta.value = f.cashWagesFuta ?? 0;
-  anyQuarterOver1000.value = !!f.anyQuarterOver1000;
-  federalIncomeTaxWithheld.value = f.federalIncomeTaxWithheld ?? 0;
-  stateUnemploymentPaid.value = f.stateUnemploymentPaid ?? 0;
+  cashWagesSsMedicare.value = f.cashWagesSsMedicare;
+  cashWagesFuta.value = f.cashWagesFuta;
+  anyQuarterOver1000.value = f.anyQuarterOver1000;
+  federalIncomeTaxWithheld.value = f.federalIncomeTaxWithheld;
+  stateUnemploymentPaid.value = f.stateUnemploymentPaid;
 });
 
 async function save() {

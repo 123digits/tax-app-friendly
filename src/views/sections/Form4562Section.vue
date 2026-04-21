@@ -61,7 +61,7 @@ function fromStored(a: DepreciationAsset): AssetRow {
     macrsClass: a.macrsClass,
     section179Election: a.section179Election,
     claimBonus: a.claimBonus,
-    businessUsePercentUi: Math.round((a.businessUsePercent ?? 1) * 10000) / 100,
+    businessUsePercentUi: Math.round(a.businessUsePercent * 10000) / 100,
     businessId: a.businessId,
   };
 }

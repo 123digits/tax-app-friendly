@@ -31,17 +31,17 @@ onMounted(async () => {
     estimatedPaymentsByQuarter: [0, 0, 0, 0],
     requestWaiver: false,
   };
-  priorYearTax.value = f.priorYearTax ?? 0;
-  priorYearAgi.value = f.priorYearAgi ?? 0;
-  whQ1.value = f.withholdingByQuarter?.[0] ?? 0;
-  whQ2.value = f.withholdingByQuarter?.[1] ?? 0;
-  whQ3.value = f.withholdingByQuarter?.[2] ?? 0;
-  whQ4.value = f.withholdingByQuarter?.[3] ?? 0;
-  estQ1.value = f.estimatedPaymentsByQuarter?.[0] ?? 0;
-  estQ2.value = f.estimatedPaymentsByQuarter?.[1] ?? 0;
-  estQ3.value = f.estimatedPaymentsByQuarter?.[2] ?? 0;
-  estQ4.value = f.estimatedPaymentsByQuarter?.[3] ?? 0;
-  requestWaiver.value = !!f.requestWaiver;
+  priorYearTax.value = f.priorYearTax;
+  priorYearAgi.value = f.priorYearAgi;
+  whQ1.value = f.withholdingByQuarter[0];
+  whQ2.value = f.withholdingByQuarter[1];
+  whQ3.value = f.withholdingByQuarter[2];
+  whQ4.value = f.withholdingByQuarter[3];
+  estQ1.value = f.estimatedPaymentsByQuarter[0];
+  estQ2.value = f.estimatedPaymentsByQuarter[1];
+  estQ3.value = f.estimatedPaymentsByQuarter[2];
+  estQ4.value = f.estimatedPaymentsByQuarter[3];
+  requestWaiver.value = f.requestWaiver;
 });
 
 async function save() {

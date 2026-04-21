@@ -6,22 +6,15 @@ import type { ScheduleERental, ScheduleERoyalty } from '../../../shared/types.js
  * here; it is consumed by applyPassiveLossLimits in passiveLoss.ts.
  */
 export function rentalNetBeforeLimits(r: ScheduleERental): number {
-  const rents = Number(r.rentsReceived) || 0;
-  const exp = Object.values(r.expenses || {}).reduce(
-    (acc, v) => acc + (Number(v) || 0),
-    0
-  );
-  return rents - exp;
+  const exp = Object.values(r.expenses).reduce((acc, v) => acc + v, 0);
+  return r.rentsReceived - exp;
 }
 
 /**
  * Aggregate royalty net income. Royalties are portfolio income (never passive).
  */
 export function sumRoyaltyNet(items: ScheduleERoyalty[]): number {
-  return items.reduce(
-    (acc, r) => acc + (Number(r.grossRoyalties) || 0) - (Number(r.expenses) || 0),
-    0
-  );
+  return items.reduce((acc, r) => acc + r.grossRoyalties - r.expenses, 0);
 }
 
 export interface RentalEntry {
@@ -56,7 +49,7 @@ export function classifyRentals(items: ScheduleERental[]): RentalClassification 
     const entry: RentalEntry = {
       id: r.id,
       net,
-      priorYearUnallowedLoss: Number(r.priorYearUnallowedLoss) || 0,
+      priorYearUnallowedLoss: r.priorYearUnallowedLoss,
     };
     if (r.activeParticipation) activeParticipationEntries.push(entry);
     else otherPassiveEntries.push(entry);

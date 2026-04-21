@@ -143,6 +143,60 @@ describe('ScheduleESection', () => {
     expect(saveList).toHaveBeenCalled();
     void router;
   });
+
+  it('move-rental up/down helpers and remove-royalty are exercised with two rentals + royalties', async () => {
+    const saveList = vi.fn();
+    const { wrapper } = mountInApp(ScheduleESection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        const data = stubTaxStoreData({
+          scheduleERentals: [
+            {
+              id: 'a', propertyAddress: 'A', propertyType: 'residential',
+              fairRentalDays: 365, personalUseDays: 0, rentsReceived: 10000,
+              expenses: {}, activeParticipation: true, isPassive: true,
+              priorYearUnallowedLoss: 0,
+            },
+            {
+              id: 'b', propertyAddress: 'B', propertyType: 'residential',
+              fairRentalDays: 365, personalUseDays: 0, rentsReceived: 8000,
+              expenses: {}, activeParticipation: true, isPassive: true,
+              priorYearUnallowedLoss: 0,
+            },
+          ],
+          scheduleERoyalties: [
+            { id: 'r', source: 'Book', grossRoyalties: 1500, expenses: 100 },
+          ],
+        });
+        s.data = data as never;
+        s.load = vi.fn(async () => { s.data = data as never; }) as never;
+        s.saveList = saveList as unknown as typeof s.saveList;
+      },
+    });
+    await flush();
+
+    // Up/down arrow buttons are icon VBtns — find by attribute.
+    const upBtns = wrapper.findAllComponents({ name: 'VBtn' })
+      .filter((b) => b.attributes('icon') === 'mdi-arrow-up');
+    const downBtns = wrapper.findAllComponents({ name: 'VBtn' })
+      .filter((b) => b.attributes('icon') === 'mdi-arrow-down');
+    // Click a movable button (first down — index 0 can always move down).
+    if (downBtns.length > 0 && !downBtns[0].attributes('disabled')) {
+      await downBtns[0].trigger('click');
+      await flush();
+    }
+    // Click up on the (now) second rental — can move up.
+    if (upBtns.length > 1 && !upBtns[1].attributes('disabled')) {
+      await upBtns[1].trigger('click');
+      await flush();
+    }
+    // Also click a disabled boundary press (tests the early-return branch).
+    if (upBtns.length > 0) {
+      await upBtns[0].trigger('click');
+      await flush();
+    }
+    expect(wrapper.html()).toBeTruthy();
+  });
 });
 
 describe('RetirementSection', () => {

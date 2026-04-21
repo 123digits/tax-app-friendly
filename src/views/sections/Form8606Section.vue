@@ -25,11 +25,11 @@ onMounted(async () => {
     distributions: 0,
     conversions: 0,
   };
-  priorYearBasis.value = f.priorYearBasis ?? 0;
-  currentYearNondeductible.value = f.currentYearNondeductible ?? 0;
-  traditionalIraBalance.value = f.traditionalIraBalance ?? 0;
-  distributions.value = f.distributions ?? 0;
-  conversions.value = f.conversions ?? 0;
+  priorYearBasis.value = f.priorYearBasis;
+  currentYearNondeductible.value = f.currentYearNondeductible;
+  traditionalIraBalance.value = f.traditionalIraBalance;
+  distributions.value = f.distributions;
+  conversions.value = f.conversions;
 });
 
 async function save() {

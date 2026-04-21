@@ -7,18 +7,5 @@ import type { OtherIncome } from '../../../shared/types.js';
  * source-specific exclusion at this stage.
  */
 export function sumOtherIncome(items: OtherIncome[]): number {
-  return items.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
-}
-
-/**
- * Return a breakdown map keyed by source for UI display. Useful if the review
- * page wants to itemize "Alimony received: $X / Jury duty: $Y".
- */
-export function otherIncomeBySource(items: OtherIncome[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const i of items) {
-    const key = i.source || 'other';
-    out[key] = (out[key] || 0) + (Number(i.amount) || 0);
-  }
-  return out;
+  return items.reduce((acc, i) => acc + i.amount, 0);
 }

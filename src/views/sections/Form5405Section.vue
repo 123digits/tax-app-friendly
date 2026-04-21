@@ -19,8 +19,8 @@ onMounted(async () => {
     annualInstallment: 0,
     dispositionAccelerated: 0,
   };
-  annualInstallment.value = f.annualInstallment ?? 0;
-  dispositionAccelerated.value = f.dispositionAccelerated ?? 0;
+  annualInstallment.value = f.annualInstallment;
+  dispositionAccelerated.value = f.dispositionAccelerated;
 });
 
 async function save() {

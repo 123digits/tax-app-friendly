@@ -30,8 +30,8 @@ onMounted(async () => {
       : String(s.qualifyingChildrenOverride);
   earnedIncomeOverride.value =
     s.earnedIncomeOverride == null ? '' : String(s.earnedIncomeOverride);
-  includeCombatPay.value = s.includeCombatPay ?? false;
-  combatPayAmount.value = s.combatPayAmount ?? 0;
+  includeCombatPay.value = s.includeCombatPay;
+  combatPayAmount.value = s.combatPayAmount;
 });
 
 function parseOptionalInt(v: string): number | null {

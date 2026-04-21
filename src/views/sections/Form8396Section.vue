@@ -21,9 +21,9 @@ onMounted(async () => {
     mortgageInterestPaid: 0,
     priorYearUnusedCredit: 0,
   };
-  certificateRate.value = f.certificateRate ?? 0;
-  mortgageInterestPaid.value = f.mortgageInterestPaid ?? 0;
-  priorYearUnusedCredit.value = f.priorYearUnusedCredit ?? 0;
+  certificateRate.value = f.certificateRate;
+  mortgageInterestPaid.value = f.mortgageInterestPaid;
+  priorYearUnusedCredit.value = f.priorYearUnusedCredit;
 });
 
 async function save() {

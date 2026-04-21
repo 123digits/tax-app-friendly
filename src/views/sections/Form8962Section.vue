@@ -27,12 +27,12 @@ onMounted(async () => {
     advancePtcPaid: 0,
     additionalMagi: 0,
   };
-  householdSize.value = f.householdSize ?? 1;
-  federalPovertyLine.value = f.federalPovertyLine ?? 0;
-  annualEnrollmentPremium.value = f.annualEnrollmentPremium ?? 0;
-  annualSlcsp.value = f.annualSlcsp ?? 0;
-  advancePtcPaid.value = f.advancePtcPaid ?? 0;
-  additionalMagi.value = f.additionalMagi ?? 0;
+  householdSize.value = f.householdSize;
+  federalPovertyLine.value = f.federalPovertyLine;
+  annualEnrollmentPremium.value = f.annualEnrollmentPremium;
+  annualSlcsp.value = f.annualSlcsp;
+  advancePtcPaid.value = f.advancePtcPaid;
+  additionalMagi.value = f.additionalMagi;
 });
 
 async function save() {

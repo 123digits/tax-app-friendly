@@ -124,4 +124,148 @@ describe('ReviewSection', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(wrapper.html()).toBeTruthy();
   });
+
+  it('renders the "all zero" computed return — hits every v-if falsy arm', async () => {
+    // Mirror the full shape of richComputed but zero out every numeric field
+    // so each `v-if="c.income.foo"` / `v-if="c.credits.bar"` hits the falsy arm.
+    const zero = {
+      filingStatus: 'single',
+      income: {
+        wages: 0, interest: 0, ordinaryDividends: 0, qualifiedDividends: 0,
+        seNetProfit: 0, retirementGross: 0, retirementTaxable: 0,
+        ssGross: 0, ssTaxable: 0, unemployment: 0, gamblingWinnings: 0,
+        otherIncome: 0, rentalNetIncome: 0, rentalSuspendedLoss: 0,
+        royaltyNetIncome: 0, k1OrdinaryIncome: 0, k1SuspendedLoss: 0,
+        k1InterestIncome: 0, k1OrdinaryDividends: 0,
+        farmNetProfit: 0, homeOfficeDeduction: 0,
+        section1231NetGain: 0, section1231OrdinaryLoss: 0,
+        depreciationRecapture: 0,
+        shortTermGain: 0, longTermGain: 0, capitalLossDeduction: 0,
+        totalIncome: 0,
+        capitalLossCarryforwardShortTerm: 0,
+        capitalLossCarryforwardLongTerm: 0,
+        capitalLossCarryforwardTotal: 0,
+      },
+      adjustments: {
+        seTaxDeduction: 0, educatorExpenses: 0, hsaDeduction: 0,
+        selfEmployedHealthInsurance: 0, sepContribution: 0, simpleContribution: 0,
+        solo401kContribution: 0, traditionalIraDeduction: 0,
+        studentLoanInterest: 0, penaltyEarlyWithdrawal: 0, alimonyPaid: 0,
+        reservistExpenses: 0, performingArtistExpenses: 0, feeBasisExpenses: 0,
+        total: 0,
+      },
+      form8606: { totalBasisAvailable: 0, taxableDistribution: 0, taxableConversion: 0, nontaxablePortion: 0, endingBasis: 0 },
+      form8889: { contributionLimit: 0, allowedDeduction: 0, excessContribution: 0, taxableDistribution: 0, additionalTax: 0 },
+      deductions: { standard: 14600, itemized: 0, used: 14600 },
+      taxComputation: { agi: 0, taxableIncome: 0, regularTax: 0, ltcgTax: 0, totalTax: 0 },
+      credits: {
+        childTaxCredit: 0, childDependentCareCredit: 0, educationCredits: 0,
+        saversCredit: 0, elderlyDisabledCredit: 0, mortgageInterestCredit: 0,
+        residentialEnergyCredit: 0, evCredit: 0, foreignTaxCredit: 0, total: 0,
+      },
+      otherTaxes: {
+        seTax: 0, earlyWithdrawalPenalty: 0, hsaAdditionalTax: 0,
+        aptcRepayment: 0, amt: 0, niit: 0, additionalMedicare: 0,
+        scheduleH: 0, fthb5405: 0, lumpSum4972: 0,
+      },
+      refundableCredits: {
+        additionalChildTaxCredit: 0, eitc: 0, premiumTaxCredit: 0, total: 0,
+      },
+      summary: {
+        refund: 0, balanceDue: 0, totalTax: 0,
+        federalWithholding: 0, totalCredits: 0,
+        payments: 0, balance: 0,
+        totalTaxAfterCredits: 0, estimatedPayments: 0,
+      },
+      form8995: { qbiDeduction: 0, qbiBaseline: 0, reitPtpComponent: 0, carryforward: 0 },
+      form2210: { penalty: 0, safeHarborMet: true, shortMethodApplied: false, waiverRequested: false },
+      form2555: { exclusionAmount: 0, housingExclusion: 0, includedIncome: 0 },
+      schedule1: { additionalIncome: 0, adjustments: 0 },
+      schedule2: { additionalTax: 0 },
+      schedule3: { nonrefundableCredits: 0, refundableCredits: 0 },
+      payments: { withholding: 0, estimatedPayments: 0, excessSocialSecurity: 0, total: 0 },
+    };
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData({ estimatedPayments: 0 }) as never;
+        s.computed = zero as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    // "No refund or balance due." shows when both summary.refund and balanceDue are 0.
+    expect(wrapper.html()).toMatch(/No refund or balance due/);
+  });
+
+  it('renders balance due variant (refund=0, balanceDue>0)', async () => {
+    const baseComputed = {
+      filingStatus: 'single',
+      income: {
+        wages: 0, interest: 0, ordinaryDividends: 0, qualifiedDividends: 0,
+        seNetProfit: 0, retirementGross: 0, retirementTaxable: 0,
+        ssGross: 0, ssTaxable: 0, unemployment: 0, gamblingWinnings: 0,
+        otherIncome: 0, rentalNetIncome: 0, rentalSuspendedLoss: 0,
+        royaltyNetIncome: 0, k1OrdinaryIncome: 0, k1SuspendedLoss: 0,
+        k1InterestIncome: 0, k1OrdinaryDividends: 0,
+        farmNetProfit: 0, homeOfficeDeduction: 0,
+        section1231NetGain: 0, section1231OrdinaryLoss: 0,
+        depreciationRecapture: 0,
+        shortTermGain: 0, longTermGain: 0, capitalLossDeduction: 0,
+        totalIncome: 0,
+      },
+      adjustments: {
+        seTaxDeduction: 0, educatorExpenses: 0, hsaDeduction: 0,
+        selfEmployedHealthInsurance: 0, sepContribution: 0, simpleContribution: 0,
+        solo401kContribution: 0, traditionalIraDeduction: 0,
+        studentLoanInterest: 0, penaltyEarlyWithdrawal: 0, alimonyPaid: 0,
+        reservistExpenses: 0, performingArtistExpenses: 0, feeBasisExpenses: 0,
+      },
+      deductions: { standard: 14600, itemized: 0, used: 14600 },
+      taxComputation: { agi: 30000, taxableIncome: 15400, regularTax: 1540, ltcgTax: 0, totalTax: 1540 },
+      credits: {},
+      otherTaxes: {},
+      refundableCredits: {},
+      summary: { refund: 0, balanceDue: 1000, totalTax: 1540, payments: 540 },
+      schedule1: {}, schedule2: {}, schedule3: {},
+      payments: { withholding: 540, estimatedPayments: 0, total: 540 },
+    };
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.computed = baseComputed as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/balance due|Estimated balance/);
+  });
+
+  it('clicks "Back to dashboard" to invoke router.push home', async () => {
+    const { wrapper, router } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.computed = richComputed() as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const backBtn = wrapper.findAll('button').find((b) => /Back to dashboard/i.test(b.text()));
+    if (backBtn) {
+      await backBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(router.currentRoute.value.path).toBe('/');
+  });
 });

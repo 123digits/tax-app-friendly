@@ -21,10 +21,6 @@ export interface K1Aggregate {
   section1231Gain: number;
 }
 
-function n(v: unknown): number {
-  return Number(v) || 0;
-}
-
 /**
  * Aggregate K-1 line items.
  *   - "business/rental" lines (boxes 1-3 on 1065/1120-S) are pooled into
@@ -44,25 +40,25 @@ export function aggregateK1s(items: K1Income[]): K1Aggregate {
 
   for (const k of items) {
     const businessNet =
-      n(k.ordinaryBusinessIncome) +
-      n(k.netRentalRealEstate) +
-      n(k.otherRentalIncome);
+      k.ordinaryBusinessIncome +
+      k.netRentalRealEstate +
+      k.otherRentalIncome;
     if (k.isPassive) {
       passiveEntries.push({
         id: k.id,
         net: businessNet,
-        priorYearUnallowedLoss: n(k.priorYearUnallowedLoss),
+        priorYearUnallowedLoss: k.priorYearUnallowedLoss,
       });
     } else {
       nonPassiveOrdinary += businessNet;
     }
-    interest += n(k.interestIncome);
-    ordinaryDividends += n(k.ordinaryDividends);
-    qualifiedDividends += n(k.qualifiedDividends);
-    royalties += n(k.royalties);
-    shortTermGain += n(k.shortTermCapitalGain);
-    longTermGain += n(k.longTermCapitalGain);
-    section1231Gain += n(k.section1231Gain);
+    interest += k.interestIncome;
+    ordinaryDividends += k.ordinaryDividends;
+    qualifiedDividends += k.qualifiedDividends;
+    royalties += k.royalties;
+    shortTermGain += k.shortTermCapitalGain;
+    longTermGain += k.longTermCapitalGain;
+    section1231Gain += k.section1231Gain;
   }
 
   return {

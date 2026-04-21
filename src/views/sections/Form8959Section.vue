@@ -19,8 +19,8 @@ onMounted(async () => {
     rrtaCompensation: 0,
     additionalMedicareWithheld: 0,
   };
-  rrtaCompensation.value = f.rrtaCompensation ?? 0;
-  additionalMedicareWithheld.value = f.additionalMedicareWithheld ?? 0;
+  rrtaCompensation.value = f.rrtaCompensation;
+  additionalMedicareWithheld.value = f.additionalMedicareWithheld;
 });
 
 async function save() {

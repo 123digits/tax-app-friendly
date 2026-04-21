@@ -106,7 +106,7 @@ export {
   applyCapitalLossCap,
   computeCapitalLossCarryforward,
 } from './income.js';
-export { sumOtherIncome, otherIncomeBySource } from './otherIncome.js';
+export { sumOtherIncome } from './otherIncome.js';
 export { rentalNetBeforeLimits, sumRoyaltyNet, classifyRentals } from './scheduleE.js';
 export { aggregateK1s } from './k1.js';
 export { applyPassiveLossLimits } from './passiveLoss.js';

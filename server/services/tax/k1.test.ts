@@ -56,10 +56,4 @@ describe('aggregateK1s', () => {
     expect(out.passiveEntries).toEqual([]);
     expect(out.interest).toBe(0);
   });
-
-  it('coerces undefined-valued fields to 0', () => {
-    const partial = k1({ interestIncome: undefined as unknown as number });
-    const out = aggregateK1s([partial]);
-    expect(out.interest).toBe(0);
-  });
 });
