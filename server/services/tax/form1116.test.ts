@@ -349,4 +349,27 @@ describe('computeForm1116', () => {
     expect(r.htkoApplied).toBe(false);
     expect(r.perBasket[0].category).toBe('passive');
   });
+
+  it('falls back to DEFAULT_HIGHEST_US_RATE (0.37) when highestUsRate is 0', () => {
+    // Exercises `Math.max(0, Number(highestUsRate) || 0) || DEFAULT_HIGHEST_US_RATE`
+    // right-side branch when the supplied rate is exactly 0.
+    const r = computeForm1116(
+      [b({ category: 'passive', foreignGrossIncome: 100, foreignTaxPaid: 50 })],
+      1000,
+      10000,
+      0,
+    );
+    // HTKO threshold = 0.37 × 100 = 37; foreignTaxPaid 50 > 37 → HTKO applies.
+    expect(r.htkoApplied).toBe(true);
+  });
+
+  it('falls back to DEFAULT_HIGHEST_US_RATE (0.37) when highestUsRate is NaN', () => {
+    const r = computeForm1116(
+      [b({ category: 'passive', foreignGrossIncome: 100, foreignTaxPaid: 50 })],
+      1000,
+      10000,
+      NaN,
+    );
+    expect(r.htkoApplied).toBe(true);
+  });
 });

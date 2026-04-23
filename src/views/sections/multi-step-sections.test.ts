@@ -181,24 +181,35 @@ describe('ScheduleESection', () => {
     });
     await flush();
 
-    // Up/down arrow buttons are icon VBtns — find by attribute.
-    const upBtns = wrapper.findAllComponents({ name: 'VBtn' })
-      .filter((b) => b.attributes('icon') === 'mdi-arrow-up');
-    const downBtns = wrapper.findAllComponents({ name: 'VBtn' })
-      .filter((b) => b.attributes('icon') === 'mdi-arrow-down');
+    // Up/down arrow buttons are icon VBtns — find by `icon` prop, not
+    // attribute (Vuetify takes the value as a prop, not a DOM attribute).
+    const allBtns = wrapper.findAllComponents({ name: 'VBtn' });
+    const upBtns = allBtns.filter((b) => b.props('icon') === 'mdi-arrow-up');
+    const downBtns = allBtns.filter((b) => b.props('icon') === 'mdi-arrow-down');
     // Click a movable button (first down — index 0 can always move down).
-    if (downBtns.length > 0 && !downBtns[0].attributes('disabled')) {
+    if (downBtns.length > 0 && !downBtns[0].props('disabled')) {
       await downBtns[0].trigger('click');
       await flush();
     }
     // Click up on the (now) second rental — can move up.
-    if (upBtns.length > 1 && !upBtns[1].attributes('disabled')) {
+    if (upBtns.length > 1 && !upBtns[1].props('disabled')) {
       await upBtns[1].trigger('click');
       await flush();
     }
     // Also click a disabled boundary press (tests the early-return branch).
     if (upBtns.length > 0) {
       await upBtns[0].trigger('click');
+      await flush();
+    }
+    // Switch to the Royalties tab and remove the royalty row.
+    const royaltiesTab = wrapper.findAll('button').find((b) => /^Royalties$/i.test(b.text().trim()));
+    if (royaltiesTab) {
+      await royaltiesTab.trigger('click');
+      await flush();
+    }
+    const removeRoyaltyBtn = wrapper.findAll('button').find((b) => /Remove royalty/i.test(b.text()));
+    if (removeRoyaltyBtn) {
+      await removeRoyaltyBtn.trigger('click');
       await flush();
     }
     expect(wrapper.html()).toBeTruthy();

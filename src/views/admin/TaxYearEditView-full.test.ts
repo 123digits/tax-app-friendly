@@ -66,7 +66,7 @@ describe('TaxYearEditView — extended flows', () => {
 
     // Click a delete-bracket button (mdi-delete icon button).
     const deleteBtns = wrapper.findAllComponents({ name: 'VBtn' })
-      .filter((b) => b.attributes('icon') === 'mdi-delete');
+      .filter((b) => b.props('icon') === 'mdi-delete');
     if (deleteBtns.length > 0) {
       await deleteBtns[0].trigger('click');
       await flush();
@@ -254,11 +254,94 @@ describe('TaxYearEditView — extended flows', () => {
       await flush();
     }
     const deleteBtns = wrapper.findAllComponents({ name: 'VBtn' })
-      .filter((b) => b.attributes('icon') === 'mdi-delete');
+      .filter((b) => b.props('icon') === 'mdi-delete');
     for (const b of deleteBtns.slice(0, 3)) {
       await b.trigger('click');
       await flush();
     }
     expect(addButtons.length).toBeGreaterThan(0);
+  });
+
+  it('normalizeBrackets / pickTopRate take the bounded-only path when no unbounded bracket exists', async () => {
+    // Provide a config where the `single` brackets have NO unbounded row
+    // (upTo: null is absent). normalizeBrackets → pickTopRate falls through
+    // to the `if (bounded.length)` branch returning the last bounded row's
+    // rate.
+    const cfg = stubConfig();
+    cfg.brackets.single = [
+      { upTo: 10000, rate: 0.1 },
+      { upTo: 50000, rate: 0.2 },
+    ];
+    const getMock = vi.fn(async () => cfg as never);
+    const saveMock = vi.fn();
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    expect(saveMock).toHaveBeenCalled();
+    const savedCfg = saveMock.mock.calls[0]?.[0] as { brackets: { single: Array<{ upTo: number | null; rate: number }> } };
+    // Last bracket should have upTo: null and inherited rate from the
+    // final bounded bracket (0.2).
+    const last = savedCfg.brackets.single[savedCfg.brackets.single.length - 1];
+    expect(last.upTo).toBeNull();
+    expect(last.rate).toBe(0.2);
+  });
+
+  it('normalizeBrackets / pickTopRate falls back to 0 when no brackets at all', async () => {
+    // Empty bracket list — pickTopRate hits `return 0` path.
+    const cfg = stubConfig();
+    cfg.brackets.single = [];
+    const getMock = vi.fn(async () => cfg as never);
+    const saveMock = vi.fn();
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    expect(saveMock).toHaveBeenCalled();
+    const savedCfg = saveMock.mock.calls[0]?.[0] as { brackets: { single: Array<{ upTo: number | null; rate: number }> } };
+    expect(savedCfg.brackets.single[0]).toEqual({ upTo: null, rate: 0 });
+  });
+
+  it('save serializes empty eitcInvestmentIncomeLimit as undefined', async () => {
+    // Exercises `cfg.value.eitcInvestmentIncomeLimit == null ||
+    // (cfg.value.eitcInvestmentIncomeLimit as any) === ''` → ? undefined : Number(...).
+    const cfg = stubConfig() as unknown as Record<string, unknown>;
+    cfg.eitcInvestmentIncomeLimit = '';
+    const getMock = vi.fn(async () => cfg as never);
+    const saveMock = vi.fn();
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    expect(saveMock).toHaveBeenCalled();
+    const payload = saveMock.mock.calls[0]?.[0] as { eitcInvestmentIncomeLimit: number | undefined };
+    expect(payload.eitcInvestmentIncomeLimit).toBeUndefined();
   });
 });

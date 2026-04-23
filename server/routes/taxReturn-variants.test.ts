@@ -468,6 +468,54 @@ describe('loadFullReturn — minimal-payload save-side null fallbacks', () => {
     expect(res.status).toBe(200);
   });
 
+  it('schedule-8812 with explicit qualifying-children + earned-income overrides', async () => {
+    // Exercises the truthy branch of `s8812Row?.qualifying_children_override
+    // == null ? null : Number(...)` and the earned-income counterpart in
+    // loadFullReturn.
+    const { cookies } = await authedUser();
+    await request(app)
+      .put('/api/return/schedule-8812')
+      .set('Cookie', cookies)
+      .send({
+        qualifyingChildrenOverride: 3,
+        earnedIncomeOverride: 25000,
+        includeCombatPay: false,
+        combatPayAmount: 0,
+      });
+    const body = (await get(cookies)).body;
+    expect(body.schedule8812.qualifyingChildrenOverride).toBe(3);
+    expect(body.schedule8812.earnedIncomeOverride).toBe(25000);
+  });
+
+  it('eitc-eligibility with explicit qualifying-children + investment-income overrides', async () => {
+    // Same shape — exercises eitcRow overrides' truthy ternary branches.
+    const { cookies } = await authedUser();
+    await request(app)
+      .put('/api/return/eitc-eligibility')
+      .set('Cookie', cookies)
+      .send({
+        qualifyingChildrenOverride: 2,
+        investmentIncomeOverride: 100,
+        isEligibleAge: true,
+        includeCombatPay: false,
+        combatPayAmount: 0,
+      });
+    const body = (await get(cookies)).body;
+    expect(body.eitcEligibility.qualifyingChildrenOverride).toBe(2);
+    expect(body.eitcEligibility.investmentIncomeOverride).toBe(100);
+  });
+
+  it('GET /api/return/list returns a populated tax-year list', async () => {
+    // Exercises the row-mapping branch in `router.get('/list', ...)` after a
+    // return has been created for the user.
+    const { cookies } = await authedUser();
+    await request(app).get('/api/return').set('Cookie', cookies); // auto-creates a return
+    const res = await request(app).get('/api/return/list').set('Cookie', cookies);
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toMatchObject({ taxYear: 2025 });
+  });
+
   it('accepts form-8995 with an activity lacking name + ein', async () => {
     // Exercises `a.name ?? null` and `a.ein ?? null` null-fallback branches
     // for a QBI activity row that only has a qbi number.

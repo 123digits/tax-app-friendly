@@ -248,4 +248,33 @@ describe('AdminView error paths', () => {
     expect(wrapper.html()).toMatch(/Clone failed/);
   });
 
+  it('createBlank early-returns when newYear input is blank', async () => {
+    // Exercises `if (!newYear.value) return;` early-return branch.
+    const cloneFn = vi.fn();
+    const wrapper = await mountAdmin((s) => {
+      s.clone = cloneFn as unknown as typeof s.clone;
+    });
+    // Don't set the new-year input; just click Create.
+    const createBtn = wrapper.findAll('button').find((b) => /^Create$/.test(b.text()));
+    if (createBtn) {
+      await createBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(cloneFn).not.toHaveBeenCalled();
+  });
+
+  it('doClone early-returns when source or target year inputs are blank', async () => {
+    // Exercises `if (!cloneSource.value || !cloneTarget.value) return;`.
+    const cloneFn = vi.fn();
+    const wrapper = await mountAdmin((s) => {
+      s.clone = cloneFn as unknown as typeof s.clone;
+    });
+    // Click Clone without filling either source or target input.
+    const cloneBtn = wrapper.findAll('button').find((b) => /^Clone$/.test(b.text()));
+    if (cloneBtn) {
+      await cloneBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(cloneFn).not.toHaveBeenCalled();
+  });
 });

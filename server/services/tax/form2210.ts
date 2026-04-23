@@ -60,8 +60,8 @@ export function computeForm2210(
   const requiredAnnualPayment =
     priorTax > 0 ? Math.min(safeHarborCurrent, safeHarborPrior) : safeHarborCurrent;
 
-  const wh = input.withholdingByQuarter ?? [0, 0, 0, 0];
-  const est = input.estimatedPaymentsByQuarter ?? [0, 0, 0, 0];
+  const wh = input.withholdingByQuarter;
+  const est = input.estimatedPaymentsByQuarter;
   const totalPaid =
     (Number(wh[0]) || 0) + (Number(wh[1]) || 0) +
     (Number(wh[2]) || 0) + (Number(wh[3]) || 0) +

@@ -17,9 +17,8 @@ export function hsaContributionLimit(
 ): number {
   if (!constants) return 0;
   if (coverage !== 'self' && coverage !== 'family') return 0;
-  const base =
-    coverage === 'family' ? (constants.familyLimit ?? 0) : (constants.selfLimit ?? 0);
-  const cu = catchUp ? (constants.catchUp ?? 0) : 0;
+  const base = coverage === 'family' ? constants.familyLimit : constants.selfLimit;
+  const cu = catchUp ? constants.catchUp : 0;
   return base + cu;
 }
 

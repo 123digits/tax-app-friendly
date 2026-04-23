@@ -198,6 +198,47 @@ describe('PersonalInfoSection', () => {
     expect(payload[0].name).toBe('Kid One');
   });
 
+  it('savePersonal + saveAddress null-out empty fields (`value || null` falsy)', async () => {
+    // Exercises the right-side branch of `firstName.value || null`,
+    // `lastName.value || null`, `dob.value || null`, `addressLine1.value
+    // || null`, `city.value || null`, `state.value || null`, and
+    // `zip.value || null` when the corresponding inputs are empty. We
+    // bypass the wizard's canNext gate by directly emitting the
+    // WizardStep "next" event.
+    const blank = stubTaxStoreData({
+      filingStatus: 'single',
+      personalInfo: {
+        firstName: null, lastName: null, ssnLast4: null, dob: null,
+        addressLine1: null, addressLine2: null, city: null, state: null, zip: null,
+        spouseFirstName: null, spouseLastName: null, spouseSsnLast4: null, spouseDob: null,
+      },
+    });
+    const { wrapper, savePersonalInfo } = setup(blank);
+    await flushAll();
+    // Find the WizardStep wrapper and emit "next" twice (once at step 1
+    // → 2 to advance, once at step 2 → 3 so savePersonal fires with
+    // empty fields).
+    const wizard = wrapper.findComponent({ name: 'WizardStep' });
+    await wizard.vm.$emit('next');
+    await flushAll();
+    await wizard.vm.$emit('next');
+    await flushAll();
+    await wizard.vm.$emit('next');
+    await flushAll();
+    expect(savePersonalInfo).toHaveBeenCalled();
+    // First savePersonal call (step 2): firstName/lastName/dob nulled.
+    const firstCall = savePersonalInfo.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(firstCall.firstName).toBeNull();
+    expect(firstCall.lastName).toBeNull();
+    expect(firstCall.dob).toBeNull();
+    // saveAddress (step 3): addressLine1/city/state/zip nulled.
+    const lastCall = savePersonalInfo.mock.calls[savePersonalInfo.mock.calls.length - 1]?.[0] as Record<string, unknown>;
+    expect(lastCall.addressLine1).toBeNull();
+    expect(lastCall.city).toBeNull();
+    expect(lastCall.state).toBeNull();
+    expect(lastCall.zip).toBeNull();
+  });
+
   it('savePersonal forwards non-null ssn/dob/spouse values when populated', async () => {
     // Exercises the `value || null` truthy-branch for each optional string
     // field that the earlier wizard-traversal test leaves blank.

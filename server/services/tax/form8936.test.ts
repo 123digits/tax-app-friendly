@@ -315,4 +315,17 @@ describe('computeForm8936', () => {
     );
     expect(r.personalUseCredit).toBeGreaterThan(0);
   });
+
+  it('AGI undefined while gates are enabled → falls back to 0 (passes cap)', () => {
+    // Exercises `agi ?? 0` when filingStatus is given but agi is undefined.
+    // 0 ≤ used-vehicle cap so credit is allowed.
+    const r = computeForm8936(
+      [v({ isNew: false, purchasePrice: 20000, userEnteredCredit: 4000 })],
+      DEFAULT_2025.evCredit,
+      undefined,
+      undefined,
+      'single',
+    );
+    expect(r.personalUseCredit).toBeGreaterThan(0);
+  });
 });

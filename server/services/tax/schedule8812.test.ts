@@ -258,4 +258,35 @@ describe('computeSchedule8812', () => {
     expect(r.refundablePortion).toBe(1700);
   });
 
+  it('handles undefined dependents arg (dependents ?? [] fallback)', () => {
+    const r = computeSchedule8812(
+      { qualifyingChildrenOverride: 1, earnedIncomeOverride: null, includeCombatPay: false, combatPayAmount: 0 },
+      undefined,
+      'single',
+      50000, 100000, 50000, 0,
+      CONSTANTS,
+      DEFAULT_2025.actc,
+    );
+    expect(r.combinedAfterPhaseout).toBe(2000);
+  });
+
+  it('combatPayAmount undefined falls back to 0', () => {
+    // Exercises `input.combatPayAmount ?? 0` in the includeCombatPay=true
+    // branch when the field is explicitly undefined.
+    const badInput = {
+      qualifyingChildrenOverride: null,
+      earnedIncomeOverride: null,
+      includeCombatPay: true,
+      combatPayAmount: undefined as unknown as number,
+    };
+    const r = computeSchedule8812(
+      badInput,
+      [dep(true)],
+      'single',
+      30000, 100000, 20000, 0,
+      CONSTANTS,
+      DEFAULT_2025.actc,
+    );
+    expect(r.combinedAfterPhaseout).toBe(2000);
+  });
 });
