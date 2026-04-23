@@ -21,9 +21,9 @@ onMounted(async () => {
     medicarePremiums: 0,
     federalWithheld: 0,
   };
-  grossBenefits.value = ss.grossBenefits ?? 0;
-  medicarePremiums.value = ss.medicarePremiums ?? 0;
-  federalWithheld.value = ss.federalWithheld ?? 0;
+  grossBenefits.value = ss.grossBenefits;
+  medicarePremiums.value = ss.medicarePremiums;
+  federalWithheld.value = ss.federalWithheld;
 });
 
 async function save() {

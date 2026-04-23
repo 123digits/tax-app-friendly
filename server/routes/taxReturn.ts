@@ -148,6 +148,20 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Format a DATE column value to an ISO 'YYYY-MM-DD' string, returning null
+ * for missing dates. PGlite returns date-typed columns sometimes as ISO
+ * strings and sometimes as Date objects (depending on type-parser state);
+ * a naive `String(d).slice(0, 10)` yields 'Sat Mar 15' for Date objects.
+ */
+function isoDate(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v);
+  // Already in ISO form (pglite string path) — strip any time/tz suffix.
+  return s.slice(0, 10);
+}
+
 async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
   const db = await getDb();
   const id = row.id;
@@ -173,7 +187,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
         firstName: piRow.first_name,
         lastName: piRow.last_name,
         ssnLast4: piRow.ssn_last4,
-        dob: piRow.dob ? String(piRow.dob).slice(0, 10) : null,
+        dob: isoDate(piRow.dob),
         addressLine1: piRow.address_line1,
         addressLine2: piRow.address_line2,
         city: piRow.city,
@@ -182,7 +196,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
         spouseFirstName: piRow.spouse_first_name,
         spouseLastName: piRow.spouse_last_name,
         spouseSsnLast4: piRow.spouse_ssn_last4,
-        spouseDob: piRow.spouse_dob ? String(piRow.spouse_dob).slice(0, 10) : null,
+        spouseDob: isoDate(piRow.spouse_dob),
       }
     : {
         firstName: null, lastName: null, ssnLast4: null, dob: null,
@@ -199,7 +213,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     name: d.name,
     ssnLast4: d.ssn_last4,
     relationship: d.relationship,
-    dob: d.dob ? String(d.dob).slice(0, 10) : null,
+    dob: isoDate(d.dob),
     isQualifyingChild: !!d.is_qualifying_child,
   }));
 
@@ -244,15 +258,15 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     grossReceipts: num(r.gross_receipts),
     returnsAllowances: num(r.returns_allowances),
     costOfGoods: num(r.cost_of_goods),
-    expenses: (typeof r.expenses === 'string' ? JSON.parse(r.expenses) : r.expenses) || {},
+    expenses: r.expenses,
   }));
 
   const cgRes = await db.query<any>('SELECT * FROM capital_gains WHERE return_id = $1 ORDER BY date_sold NULLS LAST', [id]);
   const capitalGains: CapitalGain[] = cgRes.rows.map((r) => ({
     id: r.id,
     description: r.description,
-    dateAcquired: r.date_acquired ? String(r.date_acquired).slice(0, 10) : null,
-    dateSold: r.date_sold ? String(r.date_sold).slice(0, 10) : null,
+    dateAcquired: isoDate(r.date_acquired),
+    dateSold: isoDate(r.date_sold),
     proceeds: num(r.proceeds),
     costBasis: num(r.cost_basis),
     term: r.term === 'short' ? 'short' : 'long',
@@ -332,7 +346,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     fairRentalDays: num(r.fair_rental_days),
     personalUseDays: num(r.personal_use_days),
     rentsReceived: num(r.rents_received),
-    expenses: (typeof r.expenses === 'string' ? JSON.parse(r.expenses) : r.expenses) || {},
+    expenses: r.expenses,
     activeParticipation: !!r.active_participation,
     isPassive: !!r.is_passive,
     priorYearUnallowedLoss: num(r.prior_year_unallowed_loss),
@@ -383,7 +397,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     principalProduct: r.principal_product,
     accountingMethod: r.accounting_method === 'accrual' ? 'accrual' : 'cash',
     grossIncome: num(r.gross_income),
-    expenses: (typeof r.expenses === 'string' ? JSON.parse(r.expenses) : r.expenses) || {},
+    expenses: r.expenses,
   }));
 
   const f4797Res = await db.query<any>(
@@ -393,8 +407,8 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
   const form4797Sales: Form4797Sale[] = f4797Res.rows.map((r) => ({
     id: r.id,
     description: r.description,
-    dateAcquired: r.date_acquired ? String(r.date_acquired).slice(0, 10) : null,
-    dateSold: r.date_sold ? String(r.date_sold).slice(0, 10) : null,
+    dateAcquired: isoDate(r.date_acquired),
+    dateSold: isoDate(r.date_sold),
     proceeds: num(r.proceeds),
     costBasis: num(r.cost_basis),
     accumulatedDepreciation: num(r.accumulated_depreciation),
@@ -409,9 +423,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
   const depreciationAssets: DepreciationAsset[] = depAssetRes.rows.map((r) => ({
     id: r.id,
     description: r.description,
-    datePlacedInService: r.date_placed_in_service
-      ? String(r.date_placed_in_service).slice(0, 10)
-      : null,
+    datePlacedInService: isoDate(r.date_placed_in_service),
     cost: num(r.cost),
     macrsClass: (r.macrs_class ?? '5') as MacrsClass,
     section179Election: num(r.section_179_election),
@@ -455,9 +467,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     penaltyEarlyWithdrawal: num(s1Row?.penalty_early_withdrawal),
     alimonyPaid: num(s1Row?.alimony_paid),
     alimonyRecipientSsn: s1Row?.alimony_recipient_ssn ?? null,
-    alimonyDivorceDate: s1Row?.alimony_divorce_date
-      ? String(s1Row.alimony_divorce_date).slice(0, 10)
-      : null,
+    alimonyDivorceDate: isoDate(s1Row?.alimony_divorce_date),
     reservistExpenses: num(s1Row?.reservist_expenses),
     performingArtistExpenses: num(s1Row?.performing_artist_expenses),
     feeBasisExpenses: num(s1Row?.fee_basis_expenses),
@@ -570,7 +580,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     model: r.model ?? '',
     year: Number(r.year ?? 0),
     vin: r.vin ?? null,
-    placedInService: r.placed_in_service ? String(r.placed_in_service).slice(0, 10) : null,
+    placedInService: isoDate(r.placed_in_service),
     isNew: !!r.is_new,
     purchasePrice: num(r.purchase_price),
     businessUsePercent: num(r.business_use_percent),
@@ -1135,7 +1145,7 @@ router.put('/interest', async (req, res, next) => {
     await replaceList(
       req, res, 'interest_income', interestSchema,
       'INSERT INTO interest_income (id, return_id, payer, amount, tax_exempt, private_activity_bond_interest) VALUES ($1,$2,$3,$4,$5,$6)',
-      (i, id, rid) => [id, rid, i.payer ?? null, i.amount, i.taxExempt ?? false, i.privateActivityBondInterest ?? 0]
+      (i, id, rid) => [id, rid, i.payer ?? null, i.amount, i.taxExempt, i.privateActivityBondInterest]
     );
   } catch (err) {
     next(err);
@@ -1208,7 +1218,7 @@ router.put('/self-employment', async (req, res, next) => {
         s.grossReceipts,
         s.returnsAllowances,
         s.costOfGoods,
-        JSON.stringify(s.expenses || {}),
+        JSON.stringify(s.expenses),
       ]
     );
   } catch (err) {
@@ -1245,7 +1255,7 @@ router.put('/capital-gains', async (req, res, next) => {
         c.proceeds,
         c.costBasis,
         c.term,
-        c.washSaleLossDisallowed ?? 0,
+        c.washSaleLossDisallowed,
       ]
     );
   } catch (err) {
@@ -1263,10 +1273,10 @@ const retirementSchema = z.object({
   federalWithheld: z.number().default(0),
   stateWithheld: z.number().default(0),
   distributionCode: z.string().nullable().optional(),
-  isIra: z.boolean().optional(),
-  isRoth: z.boolean().optional(),
+  isIra: z.boolean().default(false),
+  isRoth: z.boolean().default(false),
   exceptionCode: z.string().nullable().optional(),
-  taxableAmountNotDetermined: z.boolean().optional(),
+  taxableAmountNotDetermined: z.boolean().default(false),
 });
 
 router.put('/retirement-income', async (req, res, next) => {
@@ -1286,10 +1296,10 @@ router.put('/retirement-income', async (req, res, next) => {
         r.federalWithheld,
         r.stateWithheld,
         r.distributionCode ?? null,
-        r.isIra ?? false,
-        r.isRoth ?? false,
+        r.isIra,
+        r.isRoth,
         r.exceptionCode ?? null,
-        r.taxableAmountNotDetermined ?? false,
+        r.taxableAmountNotDetermined,
       ]
     );
   } catch (err) {
@@ -1428,7 +1438,7 @@ router.put('/schedule-e-rental', async (req, res, next) => {
         r.fairRentalDays,
         r.personalUseDays,
         r.rentsReceived,
-        JSON.stringify(r.expenses || {}),
+        JSON.stringify(r.expenses),
         r.activeParticipation ?? true,
         r.isPassive ?? true,
         r.priorYearUnallowedLoss,
@@ -1542,7 +1552,7 @@ router.put('/schedule-f-farm', async (req, res, next) => {
         f.principalProduct ?? null,
         f.accountingMethod,
         f.grossIncome,
-        JSON.stringify(f.expenses || {}),
+        JSON.stringify(f.expenses),
       ]
     );
   } catch (err) {
@@ -1601,7 +1611,7 @@ const depAssetSchema = z.object({
     '3', '5', '7', '10', '15', '20', '27.5', '39', 'straight_line',
   ]).default('5'),
   section179Election: z.number().default(0),
-  claimBonus: z.boolean().optional(),
+  claimBonus: z.boolean().default(false),
   businessUsePercent: z.number().default(1),
   businessId: z.string().nullable().optional(),
 });
@@ -1621,7 +1631,7 @@ router.put('/depreciation-assets', async (req, res, next) => {
         a.cost,
         a.macrsClass,
         a.section179Election,
-        a.claimBonus ?? false,
+        a.claimBonus,
         a.businessUsePercent,
         a.businessId ?? null,
       ]
@@ -1842,10 +1852,10 @@ router.put('/form-8606', async (req, res, next) => {
 const form8889Schema = z.object({
   coverage: z.enum(['none', 'self', 'family']).default('none'),
   contributions: z.number().default(0),
-  isCatchUpEligible: z.boolean().optional(),
+  isCatchUpEligible: z.boolean().default(false),
   distributions: z.number().default(0),
   qualifiedMedicalExpenses: z.number().default(0),
-  isDisabledOrOver65: z.boolean().optional(),
+  isDisabledOrOver65: z.boolean().default(false),
 });
 
 router.put('/form-8889', async (req, res, next) => {
@@ -1871,10 +1881,10 @@ router.put('/form-8889', async (req, res, next) => {
         row.id,
         body.coverage,
         body.contributions,
-        body.isCatchUpEligible ?? false,
+        body.isCatchUpEligible,
         body.distributions,
         body.qualifiedMedicalExpenses,
-        body.isDisabledOrOver65 ?? false,
+        body.isDisabledOrOver65,
       ]
     );
     await touchReturn(row.id);
@@ -1936,7 +1946,7 @@ const form8863StudentSchema = z.object({
   studentSsnLast4: z.string().nullable().optional(),
   creditType: z.enum(['aotc', 'llc']).default('aotc'),
   qualifiedExpenses: z.number().default(0),
-  isEligibleForAotc: z.boolean().optional(),
+  isEligibleForAotc: z.boolean().default(false),
   priorAotcYears: z.number().int().nonnegative().default(0),
 });
 
@@ -1954,7 +1964,7 @@ router.put('/form-8863-students', async (req, res, next) => {
         s.studentSsnLast4 ?? null,
         s.creditType,
         s.qualifiedExpenses,
-        s.isEligibleForAotc ?? false,
+        s.isEligibleForAotc,
         s.priorAotcYears,
       ]
     );
@@ -2010,10 +2020,10 @@ router.put('/form-8880', async (req, res, next) => {
 // --- Phase 7: Schedule R Elderly/Disabled Credit (single row) ---
 
 const scheduleRSchema = z.object({
-  isTaxpayerEligible: z.boolean().optional(),
-  isSpouseEligible: z.boolean().optional(),
-  taxpayerUnder65Disabled: z.boolean().optional(),
-  spouseUnder65Disabled: z.boolean().optional(),
+  isTaxpayerEligible: z.boolean().default(false),
+  isSpouseEligible: z.boolean().default(false),
+  taxpayerUnder65Disabled: z.boolean().default(false),
+  spouseUnder65Disabled: z.boolean().default(false),
   disabilityIncome: z.number().default(0),
   nontaxableSsAndPension: z.number().default(0),
 });
@@ -2040,10 +2050,10 @@ router.put('/schedule-r', async (req, res, next) => {
            updated_at = now()`,
       [
         row.id,
-        body.isTaxpayerEligible ?? false,
-        body.isSpouseEligible ?? false,
-        body.taxpayerUnder65Disabled ?? false,
-        body.spouseUnder65Disabled ?? false,
+        body.isTaxpayerEligible,
+        body.isSpouseEligible,
+        body.taxpayerUnder65Disabled,
+        body.spouseUnder65Disabled,
         body.disabilityIncome,
         body.nontaxableSsAndPension,
       ]
@@ -2181,7 +2191,7 @@ const form8936VehicleSchema = z.object({
   year: z.number().int().default(0),
   vin: z.string().nullable().optional(),
   placedInService: z.string().nullable().optional(),
-  isNew: z.boolean().optional(),
+  isNew: z.boolean().default(true),
   purchasePrice: z.number().default(0),
   businessUsePercent: z.number().default(0),
   userEnteredCredit: z.number().default(0),
@@ -2202,7 +2212,7 @@ router.put('/form-8936-vehicles', async (req, res, next) => {
         v.year,
         v.vin ?? null,
         v.placedInService || null,
-        v.isNew ?? false,
+        v.isNew,
         v.purchasePrice,
         v.businessUsePercent,
         v.userEnteredCredit,
@@ -2251,7 +2261,7 @@ router.put('/form-1116-baskets', async (req, res, next) => {
 const schedule8812Schema = z.object({
   qualifyingChildrenOverride: z.number().int().min(0).nullable().optional(),
   earnedIncomeOverride: z.number().min(0).nullable().optional(),
-  includeCombatPay: z.boolean().optional(),
+  includeCombatPay: z.boolean().default(false),
   combatPayAmount: z.number().min(0).default(0),
 });
 
@@ -2276,7 +2286,7 @@ router.put('/schedule-8812', async (req, res, next) => {
         row.id,
         body.qualifyingChildrenOverride ?? null,
         body.earnedIncomeOverride ?? null,
-        body.includeCombatPay ?? false,
+        body.includeCombatPay,
         body.combatPayAmount,
       ]
     );
@@ -2292,8 +2302,8 @@ router.put('/schedule-8812', async (req, res, next) => {
 const eitcEligibilitySchema = z.object({
   qualifyingChildrenOverride: z.number().int().min(0).nullable().optional(),
   investmentIncomeOverride: z.number().min(0).nullable().optional(),
-  isEligibleAge: z.boolean().optional(),
-  includeCombatPay: z.boolean().optional(),
+  isEligibleAge: z.boolean().default(true),
+  includeCombatPay: z.boolean().default(false),
   combatPayAmount: z.number().min(0).default(0),
 });
 
@@ -2319,8 +2329,8 @@ router.put('/eitc-eligibility', async (req, res, next) => {
         row.id,
         body.qualifyingChildrenOverride ?? null,
         body.investmentIncomeOverride ?? null,
-        body.isEligibleAge ?? true,
-        body.includeCombatPay ?? false,
+        body.isEligibleAge,
+        body.includeCombatPay,
         body.combatPayAmount,
       ]
     );
@@ -2736,9 +2746,9 @@ const form8995ActivitySchema = z.object({
   name: z.string().nullable().optional(),
   ein: z.string().nullable().optional(),
   qbi: z.number(),
-  isSstb: z.boolean().optional(),
-  w2Wages: z.number().min(0).optional(),
-  ubia: z.number().min(0).optional(),
+  isSstb: z.boolean().default(false),
+  w2Wages: z.number().min(0).default(0),
+  ubia: z.number().min(0).default(0),
 });
 
 const form8995Schema = z.object({
@@ -2784,9 +2794,9 @@ router.put('/form-8995', async (req, res, next) => {
           a.name ?? null,
           a.ein ?? null,
           a.qbi,
-          a.isSstb ?? false,
-          a.w2Wages ?? 0,
-          a.ubia ?? 0,
+          a.isSstb,
+          a.w2Wages,
+          a.ubia,
         ]
       );
     }

@@ -77,7 +77,7 @@ export function schedCNetProfit(se: SelfEmployment): number {
   const gross = (Number(se.grossReceipts) || 0) - (Number(se.returnsAllowances) || 0);
   const cogs = Number(se.costOfGoods) || 0;
   const grossProfit = gross - cogs;
-  const expenseTotal = Object.values(se.expenses || {}).reduce(
+  const expenseTotal = Object.values(se.expenses).reduce(
     (a, v) => a + (Number(v) || 0),
     0
   );

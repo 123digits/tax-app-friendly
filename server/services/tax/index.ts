@@ -125,16 +125,16 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   const pabInterestFromInt = sumPrivateActivityBondInterest(ret.interest);
   const divs = sumDividends(ret.dividends);
   const schedCNet = totalSeNetProfit(ret.selfEmployment);
-  const farmNet = totalFarmNetProfit(ret.farms ?? []);
+  const farmNet = totalFarmNetProfit(ret.farms);
   // summarizeDepreciation requires constants.depreciation (specifically its
   // firstYearMacrs map, seeded from schema.sql for 2025). It throws if the
   // group is missing — surfacing seed bugs loudly rather than silently
   // producing zero depreciation.
   const depSummary = summarizeDepreciation(
-    ret.depreciationAssets ?? [],
+    ret.depreciationAssets,
     constants.depreciation,
   );
-  const homeOfficeDed = totalHomeOfficeDeduction(ret.homeOffices ?? [], constants.homeOffice);
+  const homeOfficeDed = totalHomeOfficeDeduction(ret.homeOffices, constants.homeOffice);
   // SE-tax base combines Schedule C + Schedule F farm profit, reduced by
   // depreciation (Form 4562) and home-office use-of-home (Form 8829). Both
   // flow to 1040 as business profit and are subject to SE tax.
@@ -149,11 +149,11 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // Similarly split W-2 box-3 SS wages by owner so Schedule SE Part I
   // line 8a reduces the correct spouse's remaining ceiling.
   const seByOwner: Record<OwnerSpouse, number> = { taxpayer: 0, spouse: 0 };
-  for (const se of ret.selfEmployment ?? []) {
+  for (const se of ret.selfEmployment) {
     const o: OwnerSpouse = se.ownerSpouse ?? 'taxpayer';
     seByOwner[o] += schedCNetProfit(se);
   }
-  for (const f of ret.farms ?? []) {
+  for (const f of ret.farms) {
     const o: OwnerSpouse = f.ownerSpouse ?? 'taxpayer';
     seByOwner[o] += farmNetProfit(f);
   }
@@ -170,7 +170,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   };
 
   const w2SsByOwner: Record<OwnerSpouse, number> = { taxpayer: 0, spouse: 0 };
-  for (const w of ret.w2s ?? []) {
+  for (const w of ret.w2s) {
     const o: OwnerSpouse = w.ownerSpouse ?? 'taxpayer';
     w2SsByOwner[o] += Math.max(0, Number(w.box3SsWages) || 0);
   }
@@ -197,7 +197,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // portion (up to the taxpayer's nonrecaptured prior-5-year §1231 losses)
   // is recharacterized as ordinary income rather than LTCG.
   const form4797 = summarizeForm4797(
-    ret.form4797Sales ?? [],
+    ret.form4797Sales,
     Math.max(0, Number(ret.priorYearNonrecaptured1231Losses) || 0),
   );
   const caps = splitCapitalGains(ret.capitalGains);
@@ -238,21 +238,21 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     constants.capitalLossLimit,
   );
 
-  const retire = sumRetirementIncome(ret.retirementIncome ?? []);
-  const retirementWithheld = sumRetirementWithholding(ret.retirementIncome ?? []);
+  const retire = sumRetirementIncome(ret.retirementIncome);
+  const retirementWithheld = sumRetirementWithholding(ret.retirementIncome);
   const earlyWithdrawalPenalty = computeEarlyWithdrawalPenalty(
-    ret.retirementIncome ?? [],
+    ret.retirementIncome,
     constants.penalties,
   );
 
-  const unemp = sumUnemployment(ret.unemployment ?? []);
-  const gamb = sumGambling(ret.gambling ?? []);
-  const otherInc = sumOtherIncome(ret.otherIncome ?? []);
+  const unemp = sumUnemployment(ret.unemployment);
+  const gamb = sumGambling(ret.gambling);
+  const otherInc = sumOtherIncome(ret.otherIncome);
 
   // --- Schedule E (rental + royalty) and K-1s (Phase 4) ---
-  const rentalSplit = classifyRentals(ret.scheduleERentals ?? []);
-  const royaltyNet = sumRoyaltyNet(ret.scheduleERoyalties ?? []);
-  const k1Agg = aggregateK1s(ret.k1s ?? []);
+  const rentalSplit = classifyRentals(ret.scheduleERentals);
+  const royaltyNet = sumRoyaltyNet(ret.scheduleERoyalties);
+  const k1Agg = aggregateK1s(ret.k1s);
 
   // Apply Form 8582 passive-loss limits using provisional AGI (before the
   // passive-loss deduction itself). §469 uses "modified AGI", which for most
@@ -312,10 +312,10 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     form4797.recapture + form4797.shortOrdinaryGain + form4797.ordinaryLoss + form4797.longTermCapitalGain
     + form4797.recaptured1231AsOrdinary;
   const ssTier = constants.ssTaxability?.[fs];
-  const ssResult = ret.socialSecurity && ssTier
+  const ssResult = ssTier
     ? computeTaxableSocialSecurity(ret.socialSecurity, otherAgi, taxExemptInterest, fs, ssTier)
     : { gross: 0, taxable: 0 };
-  const ssWithheld = ret.socialSecurity ? sumSsFederalWithheld(ret.socialSecurity) : 0;
+  const ssWithheld = sumSsFederalWithheld(ret.socialSecurity);
 
   const totalIncome = round(otherAgi + ssResult.taxable);
 
@@ -325,7 +325,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
 
   // --- adjustments / AGI ---
   // Age (for IRA catch-up) derived from personal info DOB. Null if unknown.
-  const dob = ret.personalInfo?.dob;
+  const dob = ret.personalInfo.dob;
   const age: number | null = dob
     ? (() => {
         const y = Number(String(dob).slice(0, 4));
@@ -334,8 +334,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     : null;
 
   // Schedule 1 Part II lines (excludes HSA — computed separately from 8889).
-  const schedule1Raw =
-    ret.schedule1Adjustments ?? ({} as typeof ret.schedule1Adjustments);
+  const schedule1Raw = ret.schedule1Adjustments;
 
   // Phase 10: Form 2555 foreign earned income exclusion — reduces AGI.
   // Computed before Schedule 1 so the SLI MAGI per IRC §221(b)(2)(C) can
@@ -403,7 +402,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
     0,
     schedCNet + farmNet - depSummary.total - homeOfficeDed,
   ) + Math.max(0, k1Agg.nonPassiveOrdinary || 0);
-  const deemedReitPtpDividends = (ret.dividends ?? []).reduce(
+  const deemedReitPtpDividends = ret.dividends.reduce(
     (a, d) => a + Math.max(0, Number(d.section199ADividends) || 0),
     0,
   );
@@ -468,9 +467,9 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // User-entered form6251.privateActivityBondInterest (manual override from
   // K-1 / other non-1099 sources) is additive.
   const form6251WithPab = {
-    ...(ret.form6251 ?? {}),
+    ...ret.form6251,
     privateActivityBondInterest:
-      (Number(ret.form6251?.privateActivityBondInterest) || 0) + pabInterestFromInt,
+      (Number(ret.form6251.privateActivityBondInterest) || 0) + pabInterestFromInt,
   };
   const form6251Early = computeForm6251(
     form6251WithPab,
@@ -491,10 +490,12 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   // top marginal bracket for the filing status (may be a single-filer-style
   // 37% today, but honors admin-configurable overrides for future years).
   const topBracket = constants.brackets[fs];
+  // `brackets` is a Record<FilingStatus, Bracket[]> keyed by every filing
+  // status and seeded with a full bracket table; the top row's rate is the
+  // HTKO ceiling (37% for 2025). If a future admin config ships an empty
+  // bracket list the top-rate ceiling falls back to 37%.
   const highestUsRate =
-    topBracket && topBracket.length > 0
-      ? (topBracket[topBracket.length - 1].rate ?? 0.37)
-      : 0.37;
+    topBracket.length > 0 ? topBracket[topBracket.length - 1].rate : 0.37;
   const form1116Computed = computeForm1116(
     ret.form1116Baskets,
     round(regularTax + ltcgTax + form6251Early.amtLiability + form8962Computed.aptcRepayment),
@@ -667,7 +668,7 @@ export function computeReturn(ret: TaxReturn, constants: TaxYearConstants): Comp
   );
 
   // Medicare wages = sum of W-2 box 5 across all W-2s.
-  const medicareWages = (ret.w2s ?? []).reduce(
+  const medicareWages = ret.w2s.reduce(
     (a, w) => a + (Number(w.box5MedicareWages) || 0),
     0,
   );

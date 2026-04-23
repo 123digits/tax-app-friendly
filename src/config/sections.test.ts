@@ -219,10 +219,11 @@ describe('SECTIONS config', () => {
     expect(sec.progress(base())).toBe(0);
   });
 
-  it('handles missing optional objects gracefully (legacy data)', () => {
+  it('handles missing optional form bags gracefully (legacy data)', () => {
+    // Section progress helpers defensively accept missing form objects —
+    // required arrays like w2s/socialSecurity are always produced by the
+    // backend loader, so we only exercise the optional-form bag paths.
     const r = base() as unknown as Record<string, unknown>;
-    delete r.socialSecurity;
-    delete r.gambling;
     delete r.scheduleR;
     delete r.form8396;
     delete r.form5695;

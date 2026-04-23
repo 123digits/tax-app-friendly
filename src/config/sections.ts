@@ -77,7 +77,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-shield-account',
     route: '/section/ss-benefits',
     stepCount: 1,
-    progress: (r) => ((r.socialSecurity?.grossBenefits ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.socialSecurity.grossBenefits > 0 ? 1 : 0),
   },
   {
     id: 'unemployment',
@@ -86,7 +86,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-briefcase-off',
     route: '/section/unemployment',
     stepCount: 1,
-    progress: (r) => ((r.unemployment?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.unemployment.length > 0 ? 1 : 0),
   },
   {
     id: 'gambling',
@@ -95,7 +95,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-dice-multiple',
     route: '/section/gambling',
     stepCount: 1,
-    progress: (r) => ((r.gambling?.length ?? 0) > 0 || (r.gamblingLosses ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.gambling.length > 0 || r.gamblingLosses > 0 ? 1 : 0),
   },
   {
     id: 'other-income',
@@ -104,7 +104,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-cash-plus',
     route: '/section/other-income',
     stepCount: 1,
-    progress: (r) => ((r.otherIncome?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.otherIncome.length > 0 ? 1 : 0),
   },
   {
     id: 'schedule-e',
@@ -114,10 +114,7 @@ export const SECTIONS: SectionConfig[] = [
     route: '/section/schedule-e',
     stepCount: 1,
     progress: (r) =>
-      (r.scheduleERentals?.length ?? 0) > 0 ||
-      (r.scheduleERoyalties?.length ?? 0) > 0
-        ? 1
-        : 0,
+      r.scheduleERentals.length > 0 || r.scheduleERoyalties.length > 0 ? 1 : 0,
   },
   {
     id: 'k1',
@@ -126,7 +123,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-file-tree',
     route: '/section/k1',
     stepCount: 1,
-    progress: (r) => ((r.k1s?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.k1s.length > 0 ? 1 : 0),
   },
   {
     id: 'schedule-f',
@@ -135,7 +132,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-tractor',
     route: '/section/schedule-f',
     stepCount: 1,
-    progress: (r) => ((r.farms?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.farms.length > 0 ? 1 : 0),
   },
   {
     id: 'form-4797',
@@ -144,7 +141,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-office-building-cog',
     route: '/section/form-4797',
     stepCount: 1,
-    progress: (r) => ((r.form4797Sales?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.form4797Sales.length > 0 ? 1 : 0),
   },
   {
     id: 'form-4562',
@@ -153,7 +150,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-package-variant-closed',
     route: '/section/form-4562',
     stepCount: 1,
-    progress: (r) => ((r.depreciationAssets?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.depreciationAssets.length > 0 ? 1 : 0),
   },
   {
     id: 'form-8829',
@@ -162,7 +159,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-home-analytics',
     route: '/section/form-8829',
     stepCount: 1,
-    progress: (r) => ((r.homeOffices?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.homeOffices.length > 0 ? 1 : 0),
   },
   {
     id: 'schedule-1-adjustments',
@@ -230,7 +227,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-school',
     route: '/section/form-8863',
     stepCount: 1,
-    progress: (r) => ((r.form8863Students?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.form8863Students.length > 0 ? 1 : 0),
   },
   {
     id: 'form-8880',
@@ -295,7 +292,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-car-electric',
     route: '/section/form-8936',
     stepCount: 1,
-    progress: (r) => ((r.form8936Vehicles?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.form8936Vehicles.length > 0 ? 1 : 0),
   },
   {
     id: 'form-1116',
@@ -304,7 +301,7 @@ export const SECTIONS: SectionConfig[] = [
     icon: 'mdi-earth',
     route: '/section/form-1116',
     stepCount: 1,
-    progress: (r) => ((r.form1116Baskets?.length ?? 0) > 0 ? 1 : 0),
+    progress: (r) => (r.form1116Baskets.length > 0 ? 1 : 0),
   },
   {
     id: 'schedule-8812',
@@ -444,8 +441,8 @@ export const SECTIONS: SectionConfig[] = [
       const f = r.form2210;
       if (!f) return 0;
       const anyPay =
-        (f.withholdingByQuarter ?? []).some((v) => v > 0) ||
-        (f.estimatedPaymentsByQuarter ?? []).some((v) => v > 0);
+        f.withholdingByQuarter.some((v) => v > 0) ||
+        f.estimatedPaymentsByQuarter.some((v) => v > 0);
       return f.priorYearTax || f.priorYearAgi || anyPay || f.requestWaiver ? 1 : 0;
     },
   },
@@ -485,7 +482,7 @@ export const SECTIONS: SectionConfig[] = [
     progress: (r) => {
       const f = r.form8995;
       if (!f) return 0;
-      return (f.activities?.length ?? 0) > 0 ||
+      return f.activities.length > 0 ||
         f.reitPtpDividends > 0 ||
         f.priorYearQbiLossCarry > 0 ||
         f.priorYearReitPtpLossCarry > 0

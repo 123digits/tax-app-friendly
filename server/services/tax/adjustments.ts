@@ -39,7 +39,8 @@ export function cappedEducatorExpenses(
   fs: FilingStatus,
   edu: EducationConstants | undefined,
 ): number {
-  const base = edu?.educatorExpenseLimit ?? 0;
+  if (!edu) return 0;
+  const base = edu.educatorExpenseLimit;
   const cap = fs === 'mfj' ? base * 2 : base;
   return Math.max(0, Math.min(Number(entered) || 0, cap));
 }
@@ -88,7 +89,7 @@ export function phasedStudentLoanInterest(
   feie: number = 0,
 ): number {
   if (!edu) return 0;
-  const cap = edu.studentLoanInterestLimit ?? 0;
+  const cap = edu.studentLoanInterestLimit;
   const raw = Math.max(0, Math.min(Number(entered) || 0, cap));
   const range = edu.studentLoanInterestPhaseout?.[fs];
   if (!range || range.end <= range.start) return raw;
@@ -111,9 +112,8 @@ export function cappedIraDeduction(
   ret: RetirementConstants | undefined,
 ): number {
   if (!ret) return Math.max(0, Number(entered) || 0);
-  const base = ret.iraLimit ?? 0;
-  const catchUp = age != null && age >= (ret.catchUpAge ?? 50) ? (ret.iraCatchUp ?? 0) : 0;
-  const cap = base + catchUp;
+  const catchUp = age != null && age >= ret.catchUpAge ? ret.iraCatchUp : 0;
+  const cap = ret.iraLimit + catchUp;
   return Math.max(0, Math.min(Number(entered) || 0, cap));
 }
 
