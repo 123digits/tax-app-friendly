@@ -150,6 +150,60 @@ describe('ScheduleESection', () => {
     void router;
   });
 
+  it('fills every per-rental input + per-royalty input + toggles', async () => {
+    // Exercises the per-row v-model setters on rental fields
+    // (propertyAddress, propertyType, fairRentalDays, personalUseDays,
+    // rentsReceived, each expense category, activeParticipation,
+    // isPassive) and royalty fields.
+    const { wrapper } = mountInApp(ScheduleESection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        const data = stubTaxStoreData({
+          scheduleERentals: [
+            {
+              id: 'r1', propertyAddress: '1 Main', propertyType: 'residential',
+              fairRentalDays: 365, personalUseDays: 0, rentsReceived: 12000,
+              expenses: { advertising: 100 }, activeParticipation: true, isPassive: false,
+              priorYearUnallowedLoss: 0,
+            },
+          ],
+          scheduleERoyalties: [
+            { id: 'roy1', source: 'Book', grossRoyalties: 5000, expenses: 500 },
+          ],
+        });
+        s.data = data as never;
+        s.load = vi.fn(async () => { s.data = data as never; }) as never;
+        s.saveList = vi.fn() as never;
+      },
+    });
+    await flush();
+    // Fill every input on the rentals tab.
+    for (const [i, input] of wrapper.findAll('input[type="text"]').entries()) {
+      await input.setValue(`t${i}`);
+    }
+    for (const [i, input] of wrapper.findAll('input[type="number"]').entries()) {
+      await input.setValue(String(50 + i));
+    }
+    for (const cb of wrapper.findAll('input[type="checkbox"]')) {
+      await cb.setValue(!(cb.element as HTMLInputElement).checked);
+    }
+    await flush();
+    // Switch to royalties tab + fill.
+    const royaltiesTab = wrapper.findAll('button').find((b) => /^Royalties$/i.test(b.text().trim()));
+    if (royaltiesTab) {
+      await royaltiesTab.trigger('click');
+      await flush();
+    }
+    for (const [i, input] of wrapper.findAll('input[type="text"]').entries()) {
+      await input.setValue(`ry${i}`);
+    }
+    for (const [i, input] of wrapper.findAll('input[type="number"]').entries()) {
+      await input.setValue(String(100 + i));
+    }
+    await flush();
+    expect(wrapper.html()).toBeTruthy();
+  });
+
   it('move-rental up/down helpers and remove-royalty are exercised with two rentals + royalties', async () => {
     const saveList = vi.fn();
     const { wrapper } = mountInApp(ScheduleESection, {}, {

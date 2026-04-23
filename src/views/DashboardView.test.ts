@@ -97,6 +97,35 @@ describe('DashboardView', () => {
     expect(wrapper.html()).toBeTruthy();
   });
 
+  it('year selector emits update:model-value → selectYear calls switchYear', async () => {
+    // Exercises the `async function selectYear(...)` helper plus the
+    // @update:model-value inline arrow on the v-select binding.
+    const switchYear = vi.fn();
+    const { wrapper } = mountInApp(DashboardView, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.loading = false;
+        s.myReturns = [
+          { taxYear: 2025, status: 'in_progress', updatedAt: 'n' },
+          { taxYear: 2024, status: 'complete', updatedAt: 'n' },
+        ] as never;
+        s.availableYears = [2025, 2024] as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.loadYearLists = vi.fn() as unknown as typeof s.loadYearLists;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.switchYear = switchYear as unknown as typeof s.switchYear;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const selects = wrapper.findAllComponents({ name: 'VSelect' });
+    if (selects.length > 0) {
+      await selects[0].vm.$emit('update:modelValue', 2024);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(switchYear).toHaveBeenCalledWith(2024);
+  });
+
   it('activeYear computed defaults to null when neither data nor activeYear set', async () => {
     // Exercises the final `?? null` right-side branch.
     const { wrapper } = mountInApp(DashboardView, {}, {

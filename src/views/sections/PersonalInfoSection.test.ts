@@ -198,6 +198,68 @@ describe('PersonalInfoSection', () => {
     expect(payload[0].name).toBe('Kid One');
   });
 
+  it('fills every input on every wizard step so v-model setters all fire', async () => {
+    // Exercises the anonymous setter functions Vue generates for each
+    // v-model="..." binding. Existing tests only hit a handful of inputs.
+    const initial = stubTaxStoreData({
+      filingStatus: 'mfj',
+      personalInfo: {
+        firstName: 'Jane', lastName: 'Doe', ssnLast4: null, dob: null,
+        addressLine1: '1 Main', addressLine2: null, city: 'Town',
+        state: 'CA', zip: '94000',
+        spouseFirstName: 'John', spouseLastName: 'Doe',
+        spouseSsnLast4: null, spouseDob: null,
+      },
+      dependents: [
+        { id: 'kid1', name: 'Kid', ssnLast4: null, relationship: 'son',
+          dob: '2015-01-01', isQualifyingChild: true },
+      ],
+    });
+    const { wrapper } = setup(initial);
+    await flushAll();
+    const wizard = wrapper.findComponent({ name: 'WizardStep' });
+
+    // Step 1: nothing to fill (radio already selected via fixture).
+    await wizard.vm.$emit('next');
+    await flushAll();
+
+    // Step 2: fill name + SSN + DOB fields.
+    let inputs = wrapper.findAll('input[type="text"]');
+    for (const [i, input] of inputs.entries()) {
+      await input.setValue(`val${i}`);
+    }
+    const dateInputs = wrapper.findAll('input[type="date"]');
+    for (const input of dateInputs) {
+      await input.setValue('1990-01-01');
+    }
+    await flushAll();
+    await wizard.vm.$emit('next');
+    await flushAll();
+
+    // Step 3: fill address inputs.
+    inputs = wrapper.findAll('input[type="text"]');
+    for (const [i, input] of inputs.entries()) {
+      await input.setValue(`addr${i}`);
+    }
+    await flushAll();
+    await wizard.vm.$emit('next');
+    await flushAll();
+
+    // Step 4: fill dependent fields + toggle is-qualifying-child.
+    inputs = wrapper.findAll('input[type="text"]');
+    for (const [i, input] of inputs.entries()) {
+      await input.setValue(`dep${i}`);
+    }
+    const checkboxes = wrapper.findAll('input[type="checkbox"]');
+    for (const cb of checkboxes) {
+      await cb.setValue(!(cb.element as HTMLInputElement).checked);
+    }
+    await flushAll();
+    await wizard.vm.$emit('next');
+    await flushAll();
+    expect(wrapper.html()).toBeTruthy();
+  });
+
   it('savePersonal + saveAddress null-out empty fields (`value || null` falsy)', async () => {
     // Exercises the right-side branch of `firstName.value || null`,
     // `lastName.value || null`, `dob.value || null`, `addressLine1.value

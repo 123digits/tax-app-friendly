@@ -80,7 +80,7 @@ export default defineConfig({
         statements: 99,
         branches: 97,
         lines: 99,
-        functions: 55,
+        functions: 87,
       },
     },
   },

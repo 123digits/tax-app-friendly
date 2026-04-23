@@ -320,6 +320,68 @@ describe('TaxYearEditView — extended flows', () => {
     expect(savedCfg.brackets.single[0]).toEqual({ upTo: null, rate: 0 });
   });
 
+  it('fills every scalar + bracket numeric input + closes alerts', async () => {
+    // Exercises the v-model.number setter functions on every scalar (ctcPerChild,
+    // ssWageBase, saltCap, medicalAgiThreshold, capitalLossLimit, eitcInvestment-
+    // IncomeLimit), per-filing-status standardDeduction/ctcPhaseoutStart/ltcg
+    // inputs, and bracket upTo/rate fields. Also triggers both error + saved
+    // alert close handlers.
+    const cfg = stubConfig();
+    const getMock = vi.fn(async () => cfg as never);
+    let attempt = 0;
+    const saveMock = vi.fn(async () => {
+      // Fail first save → shows error alert; succeed on second → shows success.
+      if (attempt++ === 0) throw new Error('transient');
+    });
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    // Expand all panels so every numeric input is in the DOM.
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    for (const t of panelTitles) {
+      await t.trigger('click');
+      await flush();
+    }
+    // Fill every number input.
+    for (const [i, input] of wrapper.findAll('input[type="number"]').entries()) {
+      await input.setValue(String(1000 + i));
+    }
+    await flush();
+    // First save → error.
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    // Close the error alert.
+    const errorCloseBtn = wrapper.findAllComponents({ name: 'VAlert' })
+      .flatMap((a) => a.findAll('button'))
+      .find((b) => /close/i.test(b.attributes('aria-label') ?? ''));
+    if (errorCloseBtn) {
+      await errorCloseBtn.trigger('click');
+      await flush();
+    }
+    // Second save → success.
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    // Close the success alert.
+    const successCloseBtn = wrapper.findAllComponents({ name: 'VAlert' })
+      .flatMap((a) => a.findAll('button'))
+      .find((b) => /close/i.test(b.attributes('aria-label') ?? ''));
+    if (successCloseBtn) {
+      await successCloseBtn.trigger('click');
+      await flush();
+    }
+    expect(saveMock).toHaveBeenCalled();
+  });
+
   it('save serializes empty eitcInvestmentIncomeLimit as undefined', async () => {
     // Exercises `cfg.value.eitcInvestmentIncomeLimit == null ||
     // (cfg.value.eitcInvestmentIncomeLimit as any) === ''` → ? undefined : Number(...).

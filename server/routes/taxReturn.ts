@@ -425,7 +425,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     description: r.description,
     datePlacedInService: isoDate(r.date_placed_in_service),
     cost: num(r.cost),
-    macrsClass: (r.macrs_class ?? '5') as MacrsClass,
+    macrsClass: r.macrs_class as MacrsClass,
     section179Election: num(r.section_179_election),
     claimBonus: !!r.claim_bonus,
     businessUsePercent: num(r.business_use_percent),
@@ -517,7 +517,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     creditType: (r.credit_type === 'llc' ? 'llc' : 'aotc') as EducationCreditType,
     qualifiedExpenses: num(r.qualified_expenses),
     isEligibleForAotc: !!r.is_eligible_for_aotc,
-    priorAotcYears: Number(r.prior_aotc_years ?? 0),
+    priorAotcYears: Number(r.prior_aotc_years),
   }));
 
   const f8880Res = await db.query<any>('SELECT * FROM form_8880 WHERE return_id = $1', [id]);
@@ -578,7 +578,7 @@ async function loadFullReturn(row: ReturnRow): Promise<TaxReturn> {
     id: r.id,
     make: r.make ?? '',
     model: r.model ?? '',
-    year: Number(r.year ?? 0),
+    year: Number(r.year),
     vin: r.vin ?? null,
     placedInService: isoDate(r.placed_in_service),
     isNew: !!r.is_new,

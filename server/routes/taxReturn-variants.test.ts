@@ -532,3 +532,92 @@ describe('loadFullReturn — minimal-payload save-side null fallbacks', () => {
     expect(res.status).toBe(200);
   });
 });
+
+// Save-then-read flows that exercise loadFullReturn's row-present path
+// for single-row form tables (the `row?.col ?? default` truthy side).
+describe('loadFullReturn — single-row forms reloaded with saved values', () => {
+  it('form-2441 numQualifyingPersons round-trips from DB', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/form-2441').set('Cookie', cookies).send({
+      totalQualifiedExpenses: 3000,
+      numQualifyingPersons: 2,
+      taxpayerEarnedIncome: 50000,
+      spouseEarnedIncome: 0,
+      employerProvidedBenefits: 0,
+    });
+    const body = (await get(cookies)).body;
+    expect(body.form2441.numQualifyingPersons).toBe(2);
+  });
+
+  it('form-8962 householdSize round-trips from DB', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/form-8962').set('Cookie', cookies).send({
+      householdSize: 4,
+      federalPovertyLine: 31200,
+      annualEnrollmentPremium: 6000,
+      annualSlcsp: 5500,
+      advancePtcPaid: 2000,
+      additionalMagi: 0,
+    });
+    const body = (await get(cookies)).body;
+    expect(body.form8962.householdSize).toBe(4);
+  });
+
+  it('form-2555 qualifyingDays + totalDaysInPeriod round-trip from DB', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/form-2555').set('Cookie', cookies).send({
+      foreignEarnedIncome: 50000,
+      qualifyingDays: 330,
+      totalDaysInPeriod: 365,
+      housingExpenses: 0,
+      isBonaFideResident: false,
+      usesPhysicalPresence: true,
+    });
+    const body = (await get(cookies)).body;
+    expect(body.form2555.qualifyingDays).toBe(330);
+    expect(body.form2555.totalDaysInPeriod).toBe(365);
+  });
+
+  it('form-8863 student prior_aotc_years round-trips from DB', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/form-8863-students').set('Cookie', cookies).send([
+      {
+        studentName: 'Senior', creditType: 'aotc',
+        qualifiedExpenses: 4000, isEligibleForAotc: true,
+        priorAotcYears: 3,
+      },
+    ]);
+    const body = (await get(cookies)).body;
+    expect(body.form8863Students[0].priorAotcYears).toBe(3);
+  });
+
+  it('depreciation-asset macrs_class round-trips a non-default class', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/depreciation-assets').set('Cookie', cookies).send([
+      {
+        description: '27.5-year building',
+        cost: 100000,
+        macrsClass: '27.5',
+        section179Election: 0,
+        claimBonus: false,
+        businessUsePercent: 1,
+        businessId: null,
+      },
+    ]);
+    const body = (await get(cookies)).body;
+    expect(body.depreciationAssets[0].macrsClass).toBe('27.5');
+  });
+
+  it('form-8936 vehicle year round-trips from DB', async () => {
+    const { cookies } = await authedUser();
+    await request(app).put('/api/return/form-8936-vehicles').set('Cookie', cookies).send([
+      {
+        make: 'Tesla', model: 'Model 3', year: 2024, vin: null,
+        placedInService: null, isNew: true, purchasePrice: 40000,
+        businessUsePercent: 0, userEnteredCredit: 0,
+      },
+    ]);
+    const body = (await get(cookies)).body;
+    expect(body.form8936Vehicles[0].year).toBe(2024);
+  });
+});
