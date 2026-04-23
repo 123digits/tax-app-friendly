@@ -689,4 +689,65 @@ describe('sumUnemployment / sumGambling falsy-value branches', () => {
       ]).winnings,
     ).toBe(500);
   });
+
+  it('sumUnemployment with non-numeric federalWithheld coerces to 0', () => {
+    // Exercises `Number(u.federalWithheld) || 0` falsy branch.
+    expect(
+      sumUnemployment([
+        mkU({ amount: 500, federalWithheld: undefined as unknown as number }),
+      ]).withheld,
+    ).toBe(0);
+  });
+
+  it('sumGambling with non-numeric federalWithheld coerces to 0', () => {
+    expect(
+      sumGambling([
+        mkG({ winnings: 500, federalWithheld: undefined as unknown as number }),
+      ]).withheld,
+    ).toBe(0);
+  });
+});
+
+describe('sumTaxExemptInterest falsy-amount branch', () => {
+  it('tax-exempt row with zero amount yields 0 (|| 0 right branch)', () => {
+    // `i.taxExempt ? Number(i.amount) || 0 : 0` — Number(0) is 0 (falsy) so
+    // the right side of `||` fires.
+    const r = sumTaxExemptInterest([
+      { id: 'i', payer: null, amount: 0, taxExempt: true, privateActivityBondInterest: 0 },
+    ]);
+    expect(r).toBe(0);
+  });
+});
+
+describe('schedCNetProfit falsy-input branches', () => {
+  const mkSe = (p: Partial<SelfEmployment>): SelfEmployment => ({
+    id: 's', businessName: null, ein: null, principalActivity: null,
+    grossReceipts: 0, returnsAllowances: 0, costOfGoods: 0, expenses: {}, ...p,
+  });
+
+  it('grossReceipts / returnsAllowances / costOfGoods all non-numeric → net profit = 0', () => {
+    expect(
+      schedCNetProfit(mkSe({
+        grossReceipts: undefined as unknown as number,
+        returnsAllowances: undefined as unknown as number,
+        costOfGoods: undefined as unknown as number,
+      })),
+    ).toBe(0);
+  });
+});
+
+describe('splitCapitalGains falsy-value branches', () => {
+  it('capital gain with non-numeric proceeds/costBasis coerces to 0', () => {
+    // `Number(c.proceeds) || 0` and `Number(c.costBasis) || 0` falsy branches.
+    const r = splitCapitalGains([
+      {
+        id: 'cg', description: null, dateAcquired: null, dateSold: null,
+        proceeds: undefined as unknown as number,
+        costBasis: undefined as unknown as number,
+        term: 'long', washSaleLossDisallowed: 0,
+      },
+    ]);
+    expect(r.short).toBe(0);
+    expect(r.long).toBe(0);
+  });
 });

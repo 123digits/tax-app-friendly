@@ -227,3 +227,56 @@ describe('RetirementSection', () => {
     expect(saveList).toHaveBeenCalled();
   });
 });
+
+// Simple list-based sections where add + remove covers the helper
+// functions that otherwise only appear in the template.
+async function exerciseAddRemove(
+  Comp: unknown,
+): Promise<{ wrapper: ReturnType<typeof mountInApp>['wrapper']; saveList: ReturnType<typeof vi.fn>; router: ReturnType<typeof mountInApp>['router'] }> {
+  const saveList = vi.fn();
+  const { wrapper, router } = mountInApp(Comp as never, {}, {
+    beforeMount: () => {
+      const s = useTaxReturnStore();
+      const data = stubTaxStoreData();
+      s.data = data as never;
+      s.load = vi.fn(async () => { s.data = data as never; }) as never;
+      s.saveList = saveList as unknown as typeof s.saveList;
+      s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+    },
+  });
+  await flush();
+  const addBtn = wrapper.findAll('button').find((b) => /^Add /i.test(b.text()));
+  if (addBtn) await addBtn.trigger('click');
+  await flush();
+  const removeBtn = wrapper.findAll('button').find((b) => /Remove/i.test(b.text()));
+  if (removeBtn) await removeBtn.trigger('click');
+  await flush();
+  const saveBtn = wrapper.findAll('button').find((b) => /save/i.test(b.text()));
+  if (saveBtn) {
+    await saveBtn.trigger('click');
+    await flush();
+  }
+  return { wrapper, saveList, router };
+}
+
+describe.each([
+  ['IncomeSection', async () => (await import('./IncomeSection.vue')).default],
+  ['OtherIncomeSection', async () => (await import('./OtherIncomeSection.vue')).default],
+  ['UnemploymentSection', async () => (await import('./UnemploymentSection.vue')).default],
+  ['Form1116Section', async () => (await import('./Form1116Section.vue')).default],
+  ['Form8863Section', async () => (await import('./Form8863Section.vue')).default],
+  ['Form8936Section', async () => (await import('./Form8936Section.vue')).default],
+  ['GamblingSection', async () => (await import('./GamblingSection.vue')).default],
+  ['K1Section', async () => (await import('./K1Section.vue')).default],
+  ['CapitalGainsSection', async () => (await import('./CapitalGainsSection.vue')).default],
+  ['SelfEmploymentSection', async () => (await import('./SelfEmploymentSection.vue')).default],
+  ['ScheduleFSection', async () => (await import('./ScheduleFSection.vue')).default],
+  ['Form4797Section', async () => (await import('./Form4797Section.vue')).default],
+  ['Form4562Section', async () => (await import('./Form4562Section.vue')).default],
+])('%s add + remove', (_name, load) => {
+  it('exercises add and remove helpers', async () => {
+    const Comp = await load();
+    const { saveList } = await exerciseAddRemove(Comp);
+    expect(saveList).toHaveBeenCalled();
+  });
+});

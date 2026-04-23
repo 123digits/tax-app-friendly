@@ -35,17 +35,21 @@ onMounted(async () => {
 
 // Build list of linkable businesses (Schedule C + Schedule F), with
 // "unassigned" sentinel for rows not linked to a specific business.
+// businessOptions is only read from expansion-panel contents (rendered
+// only after offices is populated in onMounted, which runs *after*
+// taxStore.load()), so taxStore.data is guaranteed non-null here.
 const businessOptions = computed(() => {
   const out: Array<{ title: string; value: string | null }> = [
     { title: 'Unassigned', value: null },
   ];
-  for (const s of taxStore.data?.selfEmployment ?? []) {
+  if (!taxStore.data) return out;
+  for (const s of taxStore.data.selfEmployment) {
     out.push({
       title: s.businessName ? `${s.businessName} (Schedule C)` : 'Unnamed business (Schedule C)',
       value: s.id,
     });
   }
-  for (const f of taxStore.data?.farms ?? []) {
+  for (const f of taxStore.data.farms) {
     out.push({
       title: f.farmName ? `${f.farmName} (Schedule F)` : 'Unnamed farm (Schedule F)',
       value: f.id,

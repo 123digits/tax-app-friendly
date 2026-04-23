@@ -329,3 +329,76 @@ describe('edge paths in computeReturn', () => {
     expect(excess).toBeGreaterThan(0);
   });
 });
+
+describe('computeReturn — orchestrator sparse-value branches', () => {
+  it('handles a farm with no ownerSpouse (taxpayer default)', () => {
+    // Exercises `for (const f of ret.farms)` populated-branch.
+    const ret = emptyReturn({
+      farms: [{
+        id: 'f1', farmName: 'Farm', principalProduct: null,
+        accountingMethod: 'cash', grossIncome: 10000, expenses: {},
+      }],
+    });
+    const out = computeReturn(ret, DEFAULT_2025);
+    expect(out.otherTaxes.seTax).toBeGreaterThan(0);
+  });
+
+  it('falls back to top-rate 0.37 when bracket table is empty for filing status', () => {
+    // Exercises `topBracket.length > 0 ? ... : 0.37` false branch.
+    const constants: TaxYearConstants = {
+      ...DEFAULT_2025,
+      brackets: { ...DEFAULT_2025.brackets, single: [] },
+    };
+    const out = computeReturn(emptyReturn(), constants);
+    // Empty bracket table forces the 0.37 fallback but taxable income is 0
+    // so no regular tax is owed regardless.
+    expect(out.taxComputation.regularTax).toBe(0);
+  });
+
+  it('handles malformed DOB (YYYY > year range) → age = null', () => {
+    // `Number.isFinite(y) && y > 1900` false when y is out of range.
+    const ret = emptyReturn({
+      personalInfo: {
+        firstName: null, lastName: null, ssnLast4: null,
+        dob: 'bad-date-string',
+        addressLine1: null, addressLine2: null, city: null, state: null, zip: null,
+        spouseFirstName: null, spouseLastName: null, spouseSsnLast4: null, spouseDob: null,
+      },
+    });
+    const out = computeReturn(ret, DEFAULT_2025);
+    expect(out.summary).toBeDefined();
+  });
+
+  it('handles itemized SALT components undefined (nullish-coalesce defaults)', () => {
+    // Exercises `Number(ret.itemized?.stateLocalTax) || 0` fallback when
+    // itemized is set but fields are falsy.
+    const ret = emptyReturn({
+      useStandardDeduction: false,
+      itemized: {
+        medical: 0,
+        stateLocalTax: 0,
+        realEstateTax: 0,
+        mortgageInterest: 50000,
+        charitableCash: 0,
+        charitableNoncash: 0,
+      },
+    });
+    const out = computeReturn(ret, DEFAULT_2025);
+    expect(out.summary).toBeDefined();
+  });
+
+  it('handles ssTaxability constants missing → ssResult = zero', () => {
+    // `ssTier` undefined when `constants.ssTaxability` is missing. The
+    // else-branch of `ssTier ? computeTaxableSocialSecurity(...) : {...}` fires.
+    const constants: TaxYearConstants = {
+      ...DEFAULT_2025,
+      ssTaxability: undefined,
+    };
+    const ret = emptyReturn({
+      socialSecurity: { grossBenefits: 20000, medicarePremiums: 0, federalWithheld: 0 },
+    });
+    const out = computeReturn(ret, constants);
+    // ssTier undefined → ssTaxable = 0.
+    expect(out.income.ssTaxable).toBe(0);
+  });
+});

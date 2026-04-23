@@ -189,6 +189,17 @@ describe('PUT /api/return/personal-info', () => {
     expect(get.body.personalInfo.firstName).toBe('B');
     expect(get.body.personalInfo.ssnLast4).toBe('3333');
   });
+
+  it('returns 400 when firstName is not a string', async () => {
+    // Exercises the PUT /personal-info catch(err) branch via a zod-parse
+    // failure.
+    const { cookies } = await authedUser();
+    const res = await request(app)
+      .put('/api/return/personal-info')
+      .set('Cookie', cookies)
+      .send({ firstName: 12345 });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('PUT /api/return/dependents', () => {

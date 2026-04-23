@@ -163,4 +163,37 @@ describe('TaxYearEditView — extended flows', () => {
     }
     expect(saveMock).toHaveBeenCalled();
   });
+
+  it('mountEdit surfaces "Failed to load" fallback when fetch error has no message', async () => {
+    // Exercises `e?.message || 'Failed to load tax year config.'` right-side
+    // branch when the error has no message property.
+    const getMock = vi.fn(async () => { throw new Error(''); });
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+      },
+    });
+    await flush();
+    expect(wrapper.html()).toMatch(/Failed to load tax year config/);
+  });
+
+  it('save surfaces "Save failed" fallback when save error has no message', async () => {
+    const getMock = vi.fn(async () => stubConfig() as never);
+    const saveMock = vi.fn(async () => { throw new Error(''); });
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    expect(wrapper.html()).toMatch(/Save failed/);
+  });
 });

@@ -78,9 +78,9 @@ export default defineConfig({
       // generated Vue render closures and lazy route imports as functions.
       thresholds: {
         statements: 99,
-        branches: 94,
+        branches: 95,
         lines: 99,
-        functions: 50,
+        functions: 54,
       },
     },
   },

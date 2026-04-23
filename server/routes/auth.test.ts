@@ -318,3 +318,21 @@ describe('GET /api/dev/last-code', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// Exercises catch-err paths via zod-parse failures so the routes forward
+// the error to the global error-handler.
+describe('auth routes — catch(err) validation paths', () => {
+  it('two-factor/verify returns 400 when code shape fails', async () => {
+    const res = await request(app)
+      .post('/api/auth/two-factor/verify')
+      .send({ code: 'abc' });
+    expect(res.status).toBe(400);
+  });
+
+  it('verify-email returns 400 when body is missing email entirely', async () => {
+    const res = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ code: '000000' });
+    expect(res.status).toBe(400);
+  });
+});

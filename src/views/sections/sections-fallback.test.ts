@@ -43,6 +43,7 @@ import SelfEmploymentSection from './SelfEmploymentSection.vue';
 import ScheduleFSection from './ScheduleFSection.vue';
 import Form8829Section from './Form8829Section.vue';
 import InterestDividendsSection from './InterestDividendsSection.vue';
+import ScheduleESection from './ScheduleESection.vue';
 
 type Sec = { name: string; component: unknown; stripField: string };
 
@@ -86,6 +87,12 @@ const SECTIONS: Sec[] = [
   { name: 'ScheduleF', component: ScheduleFSection, stripField: 'farms' },
   { name: 'Form8829', component: Form8829Section, stripField: 'homeOffices' },
   { name: 'InterestDividends', component: InterestDividendsSection, stripField: 'interest' },
+  // Sections whose onMounted reads two array fields: run the test once
+  // per field stripped so both `?? []` fallbacks fire.
+  { name: 'InterestDividends-dividends', component: InterestDividendsSection, stripField: 'dividends' },
+  { name: 'ScheduleE-rentals', component: ScheduleESection, stripField: 'scheduleERentals' },
+  { name: 'ScheduleE-royalties', component: ScheduleESection, stripField: 'scheduleERoyalties' },
+  { name: 'Gambling-losses', component: GamblingSection, stripField: 'gamblingLosses' },
 ];
 
 beforeEach(() => {

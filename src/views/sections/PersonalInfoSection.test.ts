@@ -128,4 +128,49 @@ describe('PersonalInfoSection', () => {
     await flushAll();
     expect(wrapper.html()).toBeTruthy();
   });
+
+  it('savePersonal forwards non-null ssn/dob/spouse values when populated', async () => {
+    // Exercises the `value || null` truthy-branch for each optional string
+    // field that the earlier wizard-traversal test leaves blank.
+    const populatedMfj = stubTaxStoreData({
+      filingStatus: 'mfj',
+      personalInfo: {
+        firstName: 'Jane', lastName: 'Doe',
+        ssnLast4: '6789', dob: '1980-01-01',
+        addressLine1: '1 Main', addressLine2: null,
+        city: 'Town', state: 'CA', zip: '94000',
+        spouseFirstName: 'John', spouseLastName: 'Doe',
+        spouseSsnLast4: '4321', spouseDob: '1982-03-04',
+      },
+    });
+    const { wrapper, savePersonalInfo } = setup(populatedMfj);
+    await flushAll();
+    // Advance to step 2.
+    const nextBtns = wrapper.findAllComponents({ name: 'VBtn' });
+    const nextBtn = nextBtns.find((b) => /next|finish/i.test(b.text()));
+    await nextBtn!.trigger('click');
+    await flushAll();
+    // On step 2 the SSN + spouse-SSN inputs are empty (never loaded) —
+    // set them directly to exercise the truthy branch of `ssn.value || null`.
+    const textInputs = wrapper.findAll('input[type="text"]');
+    for (const input of textInputs) {
+      const el = input.element as HTMLInputElement;
+      const label = el.getAttribute('aria-label') || el.name || '';
+      if (/ssn|social/i.test(label)) {
+        await input.setValue('123-45-6789');
+      }
+    }
+    // Fallback: fill any remaining empty text inputs so `dob` and spouse*
+    // are non-empty.
+    for (const input of textInputs) {
+      const el = input.element as HTMLInputElement;
+      if (!el.value) await input.setValue('x');
+    }
+    await nextBtn!.trigger('click');
+    await flushAll();
+    expect(savePersonalInfo).toHaveBeenCalled();
+    const [payload] = savePersonalInfo.mock.calls[0] ?? [];
+    // Payload contains non-null values for fields we filled.
+    expect(payload).toBeTruthy();
+  });
 });

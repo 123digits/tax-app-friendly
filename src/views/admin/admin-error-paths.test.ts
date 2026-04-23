@@ -212,4 +212,40 @@ describe('AdminView error paths', () => {
     }
     expect(wrapper.html()).toMatch(/No existing year config|Failed to create|year config/);
   });
+
+  it('createBlank falls back to "Failed to create year" when error has no message', async () => {
+    // Exercises `err.message || 'Failed to create year.'` right-side branch
+    // when an error object without a message is thrown.
+    const wrapper = await mountAdmin((s) => {
+      s.clone = vi.fn(async () => { throw new Error(''); }) as unknown as typeof s.clone;
+    });
+    const numInputs = wrapper.findAll('input[type="number"]');
+    if (numInputs.length >= 1) {
+      await numInputs[numInputs.length - 1].setValue(2099);
+    }
+    const createBtn = wrapper.findAll('button').find((b) => /^Create$/.test(b.text()));
+    if (createBtn) {
+      await createBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(wrapper.html()).toMatch(/Failed to create year/);
+  });
+
+  it('doClone falls back to "Clone failed" when error has no message', async () => {
+    const wrapper = await mountAdmin((s) => {
+      s.clone = vi.fn(async () => { throw new Error(''); }) as unknown as typeof s.clone;
+    });
+    const numInputs = wrapper.findAll('input[type="number"]');
+    if (numInputs.length >= 2) {
+      await numInputs[0].setValue(2025);
+      await numInputs[1].setValue(2099);
+    }
+    const cloneBtn = wrapper.findAll('button').find((b) => /^Clone$/.test(b.text()));
+    if (cloneBtn) {
+      await cloneBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(wrapper.html()).toMatch(/Clone failed/);
+  });
+
 });
