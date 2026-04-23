@@ -82,6 +82,27 @@ describe('PUT /api/admin/tax-years/:year', () => {
       .send(stripped);
     expect(res.status).toBe(200);
   });
+
+  it('upserts a config with optional JSONB groups cleared', async () => {
+    // Exercises the `stringifyOrNull` null-branch for retirement / hsa /
+    // eitc / qbi etc. when the admin uploads a partial config.
+    const { cookies } = await adminCookies();
+    const base = (await getConfig(2025))!;
+    const stripped = { ...base, taxYear: 2025 } as Record<string, unknown>;
+    // Strip several optional JSONB columns — each runs through
+    // stringifyOrNull's null-path during upsert.
+    delete stripped.retirement;
+    delete stripped.hsa;
+    delete stripped.eitc;
+    delete stripped.qbi;
+    delete stripped.feie;
+    delete stripped.penalties;
+    const res = await request(app)
+      .put('/api/admin/tax-years/2025')
+      .set('Cookie', cookies)
+      .send(stripped);
+    expect(res.status).toBe(200);
+  });
 });
 
 async function findUnusedYear(start = 2200): Promise<number> {

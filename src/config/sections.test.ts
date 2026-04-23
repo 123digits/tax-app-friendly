@@ -219,6 +219,38 @@ describe('SECTIONS config', () => {
     expect(sec.progress(base())).toBe(0);
   });
 
+  // Covers the populated-array branch (`X.length > 0 ? 1 : 0` → 1) for
+  // every section whose progress comes directly from a list field.
+  it.each([
+    ['self-employment', 'selfEmployment'],
+    ['capital-gains', 'capitalGains'],
+    ['retirement', 'retirementIncome'],
+    ['unemployment', 'unemployment'],
+    ['other-income', 'otherIncome'],
+    ['k1', 'k1s'],
+    ['schedule-f', 'farms'],
+    ['form-4797', 'form4797Sales'],
+    ['form-4562', 'depreciationAssets'],
+    ['form-8829', 'homeOffices'],
+    ['form-8863', 'form8863Students'],
+    ['form-8936', 'form8936Vehicles'],
+    ['form-1116', 'form1116Baskets'],
+  ])('%s → 1 when %s has at least one row', (sectionId, field) => {
+    const sec = SECTIONS.find((s) => s.id === sectionId)!;
+    const r = base({ [field]: [{ id: '1' } as Record<string, unknown>] });
+    expect(sec.progress(r)).toBe(1);
+  });
+
+  it('schedule-e → 1 when rentals exist', () => {
+    const sec = SECTIONS.find((s) => s.id === 'schedule-e')!;
+    expect(sec.progress(base({ scheduleERentals: [{ id: '1' } as never] }))).toBe(1);
+  });
+
+  it('schedule-e → 1 when royalties exist', () => {
+    const sec = SECTIONS.find((s) => s.id === 'schedule-e')!;
+    expect(sec.progress(base({ scheduleERoyalties: [{ id: '1' } as never] }))).toBe(1);
+  });
+
   it('handles missing optional form bags gracefully (legacy data)', () => {
     // Section progress helpers defensively accept missing form objects —
     // required arrays like w2s/socialSecurity are always produced by the

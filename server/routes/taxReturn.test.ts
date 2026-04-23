@@ -961,3 +961,81 @@ describe('full pipeline compute with a big populated return', () => {
     expect(comp.body.income).toBeTruthy();
   });
 });
+
+// Each list-endpoint PUT has its own try/catch that forwards zod-parse
+// errors to the error-handler via `next(err)`. Sending a body that fails
+// validation exercises those catch branches.
+describe('PUT list endpoints — validation-failure catch paths', () => {
+  async function authed() {
+    const user = await createUser();
+    const cookies = await loginAs(app, user);
+    return { user, cookies };
+  }
+
+  const LIST_ROUTES = [
+    '/api/return/w2',
+    '/api/return/interest',
+    '/api/return/dividends',
+    '/api/return/self-employment',
+    '/api/return/capital-gains',
+    '/api/return/retirement-income',
+    '/api/return/unemployment',
+    '/api/return/gambling',
+    '/api/return/other-income',
+    '/api/return/schedule-e-rental',
+    '/api/return/schedule-e-royalty',
+    '/api/return/k1-income',
+    '/api/return/schedule-f-farm',
+    '/api/return/form-4797',
+    '/api/return/depreciation-assets',
+    '/api/return/home-offices',
+    '/api/return/form-8863-students',
+    '/api/return/form-8936-vehicles',
+    '/api/return/form-1116-baskets',
+  ];
+
+  it.each(LIST_ROUTES)('%s returns 400 when body is not an array', async (url) => {
+    const { cookies } = await authed();
+    const res = await request(app).put(url).set('Cookie', cookies).send({ not: 'array' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('PUT single-row endpoints — validation-failure catch paths', () => {
+  async function authed() {
+    const user = await createUser();
+    const cookies = await loginAs(app, user);
+    return { user, cookies };
+  }
+
+  const SINGLE_ROUTES: Array<[string, unknown]> = [
+    ['/api/return/social-security', { grossBenefits: 'not-a-number' }],
+    ['/api/return/itemized', { medical: 'bad' }],
+    ['/api/return/schedule-1-adjustments', { educatorExpenses: 'bad' }],
+    ['/api/return/form-8606', { priorYearBasis: 'bad' }],
+    ['/api/return/form-8889', { coverage: 'invalid-enum' }],
+    ['/api/return/form-2441', { totalQualifiedExpenses: 'bad' }],
+    ['/api/return/form-8880', { elective401kDeferrals: 'bad' }],
+    ['/api/return/schedule-r', { disabilityIncome: 'bad' }],
+    ['/api/return/form-8396', { certificateRate: 'bad' }],
+    ['/api/return/form-5695', { solarElectric: 'bad' }],
+    ['/api/return/schedule-8812', { qualifyingChildrenOverride: 'bad' }],
+    ['/api/return/eitc-eligibility', { qualifyingChildrenOverride: 'bad' }],
+    ['/api/return/form-8962', { householdSize: 'bad' }],
+    ['/api/return/form-6251', { privateActivityBondInterest: 'bad' }],
+    ['/api/return/form-8960', { investmentInterestExpense: 'bad' }],
+    ['/api/return/form-8959', { rrtaCompensation: 'bad' }],
+    ['/api/return/form-2555', { foreignEarnedIncome: 'bad' }],
+    ['/api/return/schedule-h', { cashWagesSsMedicare: 'bad' }],
+    ['/api/return/form-2210', { priorYearTax: 'bad' }],
+    ['/api/return/form-5405', { annualInstallment: 'bad' }],
+    ['/api/return/form-4972', { qualifyingLumpSum: 'bad' }],
+    ['/api/return/form-8995', { reitPtpDividends: 'bad' }],
+  ];
+
+  it.each(SINGLE_ROUTES)('%s returns 400 on invalid body', async (url, body) => {
+    const { cookies } = await authed();
+    const res = await request(app).put(url).set('Cookie', cookies).send(body as never);
+    expect(res.status).toBe(400);
+  });
+});

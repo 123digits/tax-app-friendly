@@ -53,27 +53,29 @@ function remove(i: number) {
 }
 
 function entityKindLabel(kind: K1EntityKind): string {
-  const match = ENTITY_KINDS.find((k) => k.value === kind);
-  return match ? match.title : kind;
+  // Every K1EntityKind value has a matching entry in ENTITY_KINDS, so the
+  // find() is always defined. The non-null assertion is safer than a
+  // fallback to the raw kind which the type system would not allow us to
+  // reach at runtime anyway.
+  return ENTITY_KINDS.find((k) => k.value === kind)!.title;
 }
 
 function netFor(k: K1Income): number {
   return (
-    (k.ordinaryBusinessIncome || 0) +
-    (k.netRentalRealEstate || 0) +
-    (k.otherRentalIncome || 0) +
-    (k.interestIncome || 0) +
-    (k.ordinaryDividends || 0) +
-    (k.royalties || 0) +
-    (k.shortTermCapitalGain || 0) +
-    (k.longTermCapitalGain || 0) +
-    (k.section1231Gain || 0)
+    k.ordinaryBusinessIncome +
+    k.netRentalRealEstate +
+    k.otherRentalIncome +
+    k.interestIncome +
+    k.ordinaryDividends +
+    k.royalties +
+    k.shortTermCapitalGain +
+    k.longTermCapitalGain +
+    k.section1231Gain
   );
 }
 
 function formatMoney(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(Math.round(n)).toLocaleString()}`;
+  return `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
 }
 
 async function saveAll() {

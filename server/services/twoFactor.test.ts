@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { runMigrations } from '../db/migrate.js';
 import { getDb } from '../db/pglite.js';
 import { newId } from './crypto.js';
@@ -77,14 +77,26 @@ describe('twoFactor', () => {
     process.env.NODE_ENV = prev;
   });
 
-  it('devPeekCode returns null after expiry', async () => {
+  it('devPeekCode returns null when no code has been issued for the email', () => {
+    expect(devPeekCode('never-issued@example.com', 'login')).toBeNull();
+  });
+
+  it('devPeekCode returns null once the cached entry has expired', async () => {
     const u = await seedUser();
     await issueCode(u.id, 'login');
-    // Expire the cached entry by mutating Date.now? Easier: sleep briefly and
-    // then clear: we instead wait for the cache behaviour by calling it after
-    // manipulating internal expiration via a long-sleep is impractical. The
-    // production NODE_ENV branch is already covered above; the missing-key
-    // branch is covered by calling with a never-seen email.
-    expect(devPeekCode('never-issued@example.com', 'login')).toBeNull();
+    // Confirm it's present.
+    expect(devPeekCode(u.email, 'login')).toMatch(/^\d{6}$/);
+    // Fast-forward Date.now past the 5-minute TTL.
+    const realNow = Date.now;
+    const future = realNow() + 1000 * 60 * 10;
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(future);
+    try {
+      expect(devPeekCode(u.email, 'login')).toBeNull();
+      // Subsequent peek confirms the entry was deleted (not just detected
+      // stale), so the map no-entry branch fires too.
+      expect(devPeekCode(u.email, 'login')).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

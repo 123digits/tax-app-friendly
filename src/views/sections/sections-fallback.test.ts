@@ -27,6 +27,22 @@ import EitcSection from './EitcSection.vue';
 import Schedule1Section from './Schedule1Section.vue';
 import SsBenefitsSection from './SsBenefitsSection.vue';
 import DeductionsSection from './DeductionsSection.vue';
+import K1Section from './K1Section.vue';
+import GamblingSection from './GamblingSection.vue';
+import IncomeSection from './IncomeSection.vue';
+import OtherIncomeSection from './OtherIncomeSection.vue';
+import UnemploymentSection from './UnemploymentSection.vue';
+import Form8863Section from './Form8863Section.vue';
+import Form8936Section from './Form8936Section.vue';
+import Form1116Section from './Form1116Section.vue';
+import Form4562Section from './Form4562Section.vue';
+import Form4797Section from './Form4797Section.vue';
+import CapitalGainsSection from './CapitalGainsSection.vue';
+import RetirementSection from './RetirementSection.vue';
+import SelfEmploymentSection from './SelfEmploymentSection.vue';
+import ScheduleFSection from './ScheduleFSection.vue';
+import Form8829Section from './Form8829Section.vue';
+import InterestDividendsSection from './InterestDividendsSection.vue';
 
 type Sec = { name: string; component: unknown; stripField: string };
 
@@ -52,6 +68,24 @@ const SECTIONS: Sec[] = [
   { name: 'Eitc', component: EitcSection, stripField: 'eitcEligibility' },
   { name: 'Schedule1', component: Schedule1Section, stripField: 'schedule1Adjustments' },
   { name: 'SsBenefits', component: SsBenefitsSection, stripField: 'socialSecurity' },
+  // Array-valued section state. Stripping the field drops us into the
+  // `taxStore.data?.X ?? []` fallback branch in each onMounted handler.
+  { name: 'K1', component: K1Section, stripField: 'k1s' },
+  { name: 'Gambling', component: GamblingSection, stripField: 'gambling' },
+  { name: 'Income', component: IncomeSection, stripField: 'w2s' },
+  { name: 'OtherIncome', component: OtherIncomeSection, stripField: 'otherIncome' },
+  { name: 'Unemployment', component: UnemploymentSection, stripField: 'unemployment' },
+  { name: 'Form8863', component: Form8863Section, stripField: 'form8863Students' },
+  { name: 'Form8936', component: Form8936Section, stripField: 'form8936Vehicles' },
+  { name: 'Form1116', component: Form1116Section, stripField: 'form1116Baskets' },
+  { name: 'Form4562', component: Form4562Section, stripField: 'depreciationAssets' },
+  { name: 'Form4797', component: Form4797Section, stripField: 'form4797Sales' },
+  { name: 'CapitalGains', component: CapitalGainsSection, stripField: 'capitalGains' },
+  { name: 'Retirement', component: RetirementSection, stripField: 'retirementIncome' },
+  { name: 'SelfEmployment', component: SelfEmploymentSection, stripField: 'selfEmployment' },
+  { name: 'ScheduleF', component: ScheduleFSection, stripField: 'farms' },
+  { name: 'Form8829', component: Form8829Section, stripField: 'homeOffices' },
+  { name: 'InterestDividends', component: InterestDividendsSection, stripField: 'interest' },
 ];
 
 beforeEach(() => {

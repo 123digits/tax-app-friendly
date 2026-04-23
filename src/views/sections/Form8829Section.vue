@@ -61,25 +61,25 @@ function businessLabel(id: string | null): string {
 
 // Simplified method: $5/sqft, capped at 300 sqft => $1,500 max.
 function simplifiedDeduction(o: HomeOfficeExpense): number {
-  const sqft = Math.max(0, Math.min(300, o.squareFeet || 0));
+  const sqft = Math.max(0, Math.min(300, o.squareFeet));
   return sqft * 5;
 }
 
 function businessUsePercent(o: HomeOfficeExpense): number {
-  if (!o.totalHomeSquareFeet || o.totalHomeSquareFeet <= 0) return 0;
-  const pct = (o.squareFeet || 0) / o.totalHomeSquareFeet;
+  if (o.totalHomeSquareFeet <= 0) return 0;
+  const pct = o.squareFeet / o.totalHomeSquareFeet;
   return Math.max(0, Math.min(1, pct));
 }
 
 function actualDeduction(o: HomeOfficeExpense): number {
   const pct = businessUsePercent(o);
   const total =
-    (o.utilities || 0) +
-    (o.insurance || 0) +
-    (o.mortgageInterest || 0) +
-    (o.realEstateTax || 0) +
-    (o.repairs || 0) +
-    (o.depreciation || 0);
+    o.utilities +
+    o.insurance +
+    o.mortgageInterest +
+    o.realEstateTax +
+    o.repairs +
+    o.depreciation;
   return total * pct;
 }
 
@@ -205,7 +205,7 @@ async function save() {
               <v-alert type="success" variant="tonal" class="mt-2">
                 Estimated simplified deduction:
                 <strong>{{ formatCurrency(simplifiedDeduction(o)) }}</strong>
-                <span v-if="(o.squareFeet || 0) > 300" class="ml-1">
+                <span v-if="o.squareFeet > 300" class="ml-1">
                   (capped at 300 sqft / $1,500)
                 </span>
               </v-alert>

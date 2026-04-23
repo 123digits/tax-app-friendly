@@ -96,13 +96,13 @@ function remove(i: number) {
 }
 
 function macrsLabel(cls: MacrsClass): string {
-  const match = MACRS_CLASSES.find((m) => m.value === cls);
-  return match ? match.title : cls;
+  // Every MacrsClass union member has a corresponding entry in MACRS_CLASSES,
+  // so the find is always defined.
+  return MACRS_CLASSES.find((m) => m.value === cls)!.title;
 }
 
 function formatMoney(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(Math.round(n)).toLocaleString()}`;
+  return `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
 }
 
 async function saveAll() {
