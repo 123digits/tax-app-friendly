@@ -253,4 +253,66 @@ describe('computeForm8936', () => {
     );
     expect(r.personalUseCredit).toBe(0);
   });
+
+  it('falls back to statutory defaults when constants arg is undefined', () => {
+    // Exercises `constants?.X ?? default` paths — $7,500 new cap, $4,000
+    // used cap, $25k used sale-price cap, 30% used pct cap.
+    const r = computeForm8936(
+      [v({ isNew: true, userEnteredCredit: 99999 })],
+      undefined,
+    );
+    expect(r.personalUseCredit).toBe(7500);
+  });
+
+  it('used-vehicle default 30%-of-price cap when constants arg is undefined', () => {
+    const r = computeForm8936(
+      [v({ isNew: false, purchasePrice: 10000, userEnteredCredit: 4000 })],
+      undefined,
+    );
+    // 30% × 10_000 = $3,000, capped below $4,000 statutory.
+    expect(r.personalUseCredit).toBe(3000);
+  });
+
+  it('used-vehicle sale-price cap default ($25k) zeroes expensive cars', () => {
+    const r = computeForm8936(
+      [v({ isNew: false, purchasePrice: 30000, userEnteredCredit: 4000 })],
+      undefined,
+    );
+    expect(r.personalUseCredit).toBe(0);
+  });
+
+  it('gatesEnabled is false when filingStatus is omitted → no AGI gate', () => {
+    // With filingStatus undefined, gates are disabled and AGI is ignored.
+    const r = computeForm8936(
+      [v({ isNew: true, userEnteredCredit: 7500, purchasePrice: 55000 })],
+      DEFAULT_2025.evCredit,
+      999999, // extreme AGI would fail gate, but gates are off
+    );
+    expect(r.personalUseCredit).toBe(7500);
+  });
+
+  it('AGI cap safe-harbor: undefined priorYearAgi falls back to current', () => {
+    // priorYearAgi undefined → use current-year. Current $80k MAGI > $75k
+    // used-vehicle single cap → zero credit (safe-harbor only one year).
+    const r = computeForm8936(
+      [v({ isNew: false, purchasePrice: 20000, userEnteredCredit: 4000 })],
+      DEFAULT_2025.evCredit,
+      80000,
+      undefined,
+      'single',
+    );
+    expect(r.personalUseCredit).toBe(0);
+  });
+
+  it('AGI cap safe-harbor: prior-year under cap passes even with high current', () => {
+    // Prior year $50k < $75k cap → safe-harbor passes.
+    const r = computeForm8936(
+      [v({ isNew: false, purchasePrice: 20000, userEnteredCredit: 4000 })],
+      DEFAULT_2025.evCredit,
+      80000,
+      50000,
+      'single',
+    );
+    expect(r.personalUseCredit).toBeGreaterThan(0);
+  });
 });

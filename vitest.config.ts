@@ -77,9 +77,9 @@ export default defineConfig({
       // `npm test -- --coverage`. Function % stays lax because v8 counts
       // generated Vue render closures and lazy route imports as functions.
       thresholds: {
-        statements: 97,
-        branches: 88,
-        lines: 97,
+        statements: 98,
+        branches: 91,
+        lines: 98,
         functions: 50,
       },
     },

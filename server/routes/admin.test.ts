@@ -68,6 +68,20 @@ describe('PUT /api/admin/tax-years/:year', () => {
     const reloaded = await getConfig(2025);
     expect(reloaded?.notes).toBe('roundtripped');
   });
+
+  it('upserts a config with notes + eitcInvestmentIncomeLimit cleared', async () => {
+    // Exercises the `?? null` save-side fallbacks for nullable scalar columns.
+    const { cookies } = await adminCookies();
+    const base = (await getConfig(2025))!;
+    const stripped = { ...base, taxYear: 2025 } as Partial<typeof base>;
+    delete stripped.notes;
+    delete stripped.eitcInvestmentIncomeLimit;
+    const res = await request(app)
+      .put('/api/admin/tax-years/2025')
+      .set('Cookie', cookies)
+      .send(stripped);
+    expect(res.status).toBe(200);
+  });
 });
 
 async function findUnusedYear(start = 2200): Promise<number> {

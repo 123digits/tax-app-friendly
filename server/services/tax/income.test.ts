@@ -6,11 +6,25 @@ import {
   applyCapitalLossCap,
   computeCapitalLossCarryforward,
   sumRetirementIncome,
+  sumW2Wages,
+  sumW2SsWages,
+  sumInterest,
+  sumTaxExemptInterest,
+  sumPrivateActivityBondInterest,
+  schedCNetProfit,
+  totalSeNetProfit,
+  sumUnemployment,
+  sumGambling,
 } from './income.js';
 import type {
   CapitalGain,
   DividendIncome,
   RetirementIncome,
+  W2Income,
+  InterestIncome,
+  SelfEmployment,
+  UnemploymentIncome,
+  GamblingWinnings,
 } from '../../../shared/types.js';
 
 function mkRet(overrides: Partial<RetirementIncome>): RetirementIncome {
@@ -417,5 +431,262 @@ describe('computeCapitalLossCarryforward (§1212(b) / Pub 550)', () => {
     expect(out.allowedDeduction).toBe(-3000);
     expect(out.shortTermCarryforward).toBe(0);
     expect(out.longTermCarryforward).toBe(5000);
+  });
+});
+
+// ----- Unit tests for small sum/* helpers that were only exercised
+// transitively through the orchestrator, so some `|| 0` / conditional
+// branches never fired. -----
+
+function w2(p: Partial<W2Income> = {}): W2Income {
+  return {
+    id: p.id ?? 'w1',
+    employer: p.employer ?? null,
+    ein: p.ein ?? null,
+    box1Wages: p.box1Wages ?? 0,
+    box2FedWithheld: p.box2FedWithheld ?? 0,
+    box3SsWages: p.box3SsWages ?? 0,
+    box4SsWithheld: p.box4SsWithheld ?? 0,
+    box5MedicareWages: p.box5MedicareWages ?? 0,
+    box6MedicareWithheld: p.box6MedicareWithheld ?? 0,
+    stateWages: p.stateWages ?? 0,
+    stateWithheld: p.stateWithheld ?? 0,
+    ...p,
+  };
+}
+
+describe('sumW2Wages / sumW2SsWages', () => {
+  it('empty list sums to 0', () => {
+    expect(sumW2Wages([])).toBe(0);
+    expect(sumW2SsWages([])).toBe(0);
+  });
+
+  it('sums box1Wages across rows', () => {
+    expect(sumW2Wages([w2({ box1Wages: 50000 }), w2({ box1Wages: 20000 })])).toBe(70000);
+  });
+
+  it('falls back to 0 when box1Wages is non-numeric', () => {
+    // Number(undefined) is NaN → `|| 0` fires the 0-branch.
+    expect(
+      sumW2Wages([w2({ box1Wages: undefined as unknown as number }), w2({ box1Wages: 40000 })]),
+    ).toBe(40000);
+  });
+
+  it('sums box3SsWages across rows', () => {
+    expect(
+      sumW2SsWages([
+        w2({ box3SsWages: 10000 }),
+        w2({ box3SsWages: undefined as unknown as number }),
+      ]),
+    ).toBe(10000);
+  });
+});
+
+describe('sumInterest / sumTaxExemptInterest / sumPrivateActivityBondInterest', () => {
+  const mkInt = (p: Partial<InterestIncome>): InterestIncome => ({
+    id: 'i', payer: null, amount: 0, taxExempt: false, privateActivityBondInterest: 0, ...p,
+  });
+
+  it('sumInterest excludes tax-exempt rows', () => {
+    expect(
+      sumInterest([
+        mkInt({ amount: 100, taxExempt: false }),
+        mkInt({ amount: 50, taxExempt: true }),
+      ]),
+    ).toBe(100);
+  });
+
+  it('sumTaxExemptInterest sums ONLY tax-exempt rows', () => {
+    expect(
+      sumTaxExemptInterest([
+        mkInt({ amount: 100, taxExempt: false }),
+        mkInt({ amount: 50, taxExempt: true }),
+        mkInt({ amount: 25, taxExempt: true }),
+      ]),
+    ).toBe(75);
+  });
+
+  it('sumPrivateActivityBondInterest clamps negatives to 0', () => {
+    expect(
+      sumPrivateActivityBondInterest([
+        mkInt({ privateActivityBondInterest: 100 }),
+        mkInt({ privateActivityBondInterest: -50 as unknown as number }),
+      ]),
+    ).toBe(100);
+  });
+
+  it('sumInterest with non-numeric amount falls back to 0', () => {
+    expect(
+      sumInterest([
+        mkInt({ amount: undefined as unknown as number, taxExempt: false }),
+        mkInt({ amount: 40, taxExempt: false }),
+      ]),
+    ).toBe(40);
+  });
+});
+
+describe('sumDividends', () => {
+  const mkDiv = (p: Partial<DividendIncome>): DividendIncome => ({
+    id: 'd', payer: null, ordinary: 0, qualified: 0, totalCapGainDistributions: 0,
+    unrecapSection1250Gain: 0, section1202Gain: 0, ...p,
+  });
+
+  it('clamps qualified > ordinary down to ordinary', () => {
+    // Bad 1099-DIV data: Box 1b > Box 1a. Clamp so preferential bucket is ≤ 1a.
+    const r = sumDividends([mkDiv({ ordinary: 500, qualified: 800 })]);
+    expect(r.ordinary).toBe(500);
+    expect(r.qualified).toBe(500);
+  });
+
+  it('negative totalCapGainDistributions clamps to 0', () => {
+    const r = sumDividends([
+      mkDiv({ ordinary: 100, totalCapGainDistributions: -5 as unknown as number }),
+    ]);
+    expect(r.totalCapGainDistributions).toBe(0);
+  });
+
+  it('sums across multiple rows', () => {
+    const r = sumDividends([
+      mkDiv({ ordinary: 200, qualified: 150, totalCapGainDistributions: 30 }),
+      mkDiv({ ordinary: 100, qualified: 50, totalCapGainDistributions: 10 }),
+    ]);
+    expect(r.ordinary).toBe(300);
+    expect(r.qualified).toBe(200);
+    expect(r.totalCapGainDistributions).toBe(40);
+  });
+});
+
+describe('schedCNetProfit / totalSeNetProfit', () => {
+  const mkSe = (p: Partial<SelfEmployment>): SelfEmployment => ({
+    id: 's', businessName: null, ein: null, principalActivity: null,
+    grossReceipts: 0, returnsAllowances: 0, costOfGoods: 0, expenses: {}, ...p,
+  });
+
+  it('computes gross − returns − cogs − expenses', () => {
+    expect(
+      schedCNetProfit(mkSe({
+        grossReceipts: 100000,
+        returnsAllowances: 5000,
+        costOfGoods: 30000,
+        expenses: { rent: 12000, advertising: 3000 },
+      })),
+    ).toBe(100000 - 5000 - 30000 - 15000);
+  });
+
+  it('treats non-numeric expense values as 0', () => {
+    expect(
+      schedCNetProfit(mkSe({
+        grossReceipts: 50000,
+        expenses: { misc: 'nope' as unknown as number, rent: 10000 },
+      })),
+    ).toBe(40000);
+  });
+
+  it('totalSeNetProfit sums across rows', () => {
+    expect(
+      totalSeNetProfit([
+        mkSe({ grossReceipts: 50000, expenses: { rent: 10000 } }),
+        mkSe({ grossReceipts: 20000 }),
+      ]),
+    ).toBe(40000 + 20000);
+  });
+});
+
+describe('sumRetirementIncome distribution-code branches', () => {
+  const mkRet2 = (p: Partial<RetirementIncome>): RetirementIncome => ({
+    id: 'r', payer: null, grossDistribution: 0, taxableAmount: 0,
+    federalWithheld: 0, stateWithheld: 0, distributionCode: null,
+    isIra: false, isRoth: false, exceptionCode: null,
+    taxableAmountNotDetermined: false, ...p,
+  });
+
+  it('IRA + taxableAmountNotDetermined + code G (rollover) → taxable stays 0', () => {
+    // §402(c) direct rollover — not taxable even though "not determined" flag set.
+    const r = sumRetirementIncome([
+      mkRet2({
+        isIra: true,
+        grossDistribution: 10000,
+        taxableAmount: 0,
+        taxableAmountNotDetermined: true,
+        distributionCode: 'G',
+      }),
+    ]);
+    expect(r.taxable).toBe(0);
+    expect(r.gross).toBe(10000);
+  });
+
+  it('IRA + taxableAmountNotDetermined + code H (Roth-to-Roth) → taxable stays 0', () => {
+    const r = sumRetirementIncome([
+      mkRet2({
+        isIra: true,
+        grossDistribution: 5000,
+        taxableAmount: 0,
+        taxableAmountNotDetermined: true,
+        distributionCode: 'H',
+      }),
+    ]);
+    expect(r.taxable).toBe(0);
+  });
+
+  it('IRA + taxableAmountNotDetermined + code "7" (normal) → taxable defaults to gross', () => {
+    const r = sumRetirementIncome([
+      mkRet2({
+        isIra: true,
+        grossDistribution: 8000,
+        taxableAmount: 0,
+        taxableAmountNotDetermined: true,
+        distributionCode: '7',
+      }),
+    ]);
+    expect(r.taxable).toBe(8000);
+  });
+
+  it('non-IRA row leaves stored taxableAmount alone regardless of flag', () => {
+    // 401(k)/pension payers DO know the taxable amount — Box 2a wins.
+    const r = sumRetirementIncome([
+      mkRet2({
+        isIra: false,
+        grossDistribution: 10000,
+        taxableAmount: 6000,
+        taxableAmountNotDetermined: true,
+      }),
+    ]);
+    expect(r.taxable).toBe(6000);
+  });
+
+  it('aggregates federal + state withholding across rows', () => {
+    const r = sumRetirementIncome([
+      mkRet2({ federalWithheld: 1000, stateWithheld: 200 }),
+      mkRet2({ federalWithheld: 500, stateWithheld: 100 }),
+    ]);
+    expect(r.withheld).toBe(1500);
+    expect(r.stateWithheld).toBe(300);
+  });
+});
+
+describe('sumUnemployment / sumGambling falsy-value branches', () => {
+  const mkU = (p: Partial<UnemploymentIncome>): UnemploymentIncome => ({
+    id: 'u', payer: null, amount: 0, federalWithheld: 0, ...p,
+  });
+  const mkG = (p: Partial<GamblingWinnings>): GamblingWinnings => ({
+    id: 'g', payer: null, winnings: 0, federalWithheld: 0, ...p,
+  });
+
+  it('sumUnemployment ignores non-numeric rows', () => {
+    expect(
+      sumUnemployment([
+        mkU({ amount: undefined as unknown as number, federalWithheld: 50 }),
+        mkU({ amount: 1000, federalWithheld: 100 }),
+      ]).amount,
+    ).toBe(1000);
+  });
+
+  it('sumGambling ignores non-numeric rows', () => {
+    expect(
+      sumGambling([
+        mkG({ winnings: undefined as unknown as number, federalWithheld: 10 }),
+        mkG({ winnings: 500, federalWithheld: 50 }),
+      ]).winnings,
+    ).toBe(500);
   });
 });

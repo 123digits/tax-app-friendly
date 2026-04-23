@@ -68,4 +68,42 @@ describe('totalHomeOfficeDeduction', () => {
       ])
     ).toBe(1250);  // 500 + 750
   });
+
+  it('honors admin-supplied simplified-method constants override', () => {
+    // When constants.simplifiedRatePerSqft / simplifiedMaxSqft are provided,
+    // they override the statutory $5 / 300 sqft defaults.
+    expect(
+      computeHomeOfficeDeduction(
+        office({ useSimplified: true, squareFeet: 500 }),
+        { simplifiedRatePerSqft: 7, simplifiedMaxSqft: 400 },
+      ),
+    ).toBe(2800); // capped at 400 sqft × $7
+  });
+
+  it('totalHomeOfficeDeduction threads constants through to each office', () => {
+    expect(
+      totalHomeOfficeDeduction(
+        [
+          office({ useSimplified: true, squareFeet: 100 }),
+          office({ useSimplified: true, squareFeet: 200 }),
+        ],
+        { simplifiedRatePerSqft: 10, simplifiedMaxSqft: 300 },
+      ),
+    ).toBe(3000); // 1000 + 2000
+  });
+
+  it('actual method with zero total sqft falls back to denominator 1', () => {
+    // `Math.max(1, Number(h.totalHomeSquareFeet) || 0)` — if user leaves
+    // total-home-sqft blank, we treat it as 1 to avoid NaN/∞. With sqft > 0,
+    // pct clamps to 100%.
+    const d = computeHomeOfficeDeduction(
+      office({
+        useSimplified: false,
+        squareFeet: 100,
+        totalHomeSquareFeet: 0,
+        utilities: 500,
+      }),
+    );
+    expect(d).toBe(500);
+  });
 });

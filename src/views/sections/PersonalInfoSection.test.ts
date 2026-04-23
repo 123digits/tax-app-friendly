@@ -113,4 +113,19 @@ describe('PersonalInfoSection', () => {
     await flushAll();
     expect(router.currentRoute.value.path).toBe('/');
   });
+
+  it('loads gracefully when personalInfo fields are all null', async () => {
+    // Exercises the `?? ''` fallbacks for firstName/lastName/dob/addressLine1/
+    // city/state/zip when the return is a brand-new blank one.
+    const blank = stubTaxStoreData({
+      personalInfo: {
+        firstName: null, lastName: null, ssnLast4: null, dob: null,
+        addressLine1: null, addressLine2: null, city: null, state: null, zip: null,
+        spouseFirstName: null, spouseLastName: null, spouseSsnLast4: null, spouseDob: null,
+      },
+    });
+    const { wrapper } = setup(blank);
+    await flushAll();
+    expect(wrapper.html()).toBeTruthy();
+  });
 });

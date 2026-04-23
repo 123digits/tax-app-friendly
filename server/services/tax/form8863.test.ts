@@ -66,6 +66,19 @@ describe('phaseoutFactor', () => {
   it('MFS-style ineligible (0/0) → 0', () => {
     expect(phaseoutFactor(10000, { start: 0, end: 0 })).toBe(0);
   });
+
+  it('undefined range → 1 (no phase-out)', () => {
+    expect(phaseoutFactor(100000, undefined)).toBe(1);
+  });
+
+  it('degenerate range where end ≤ start → cliff at end', () => {
+    // start=end but non-zero → agi < end is 1, else 0.
+    expect(phaseoutFactor(79999, { start: 80000, end: 80000 })).toBe(1);
+    expect(phaseoutFactor(80000, { start: 80000, end: 80000 })).toBe(0);
+    // end < start (inverted / corrupted config) → also cliff at end.
+    expect(phaseoutFactor(7000, { start: 20000, end: 10000 })).toBe(1);
+    expect(phaseoutFactor(15000, { start: 20000, end: 10000 })).toBe(0);
+  });
 });
 
 describe('computeForm8863', () => {
@@ -218,5 +231,38 @@ describe('computeForm8863', () => {
     expect(r.aotcAllowed).toBe(1500);
     expect(r.refundablePortion).toBe(600);
     expect(r.nonrefundablePortion).toBe(900);
+  });
+
+  it('falls back to statutory defaults when constants fields are absent', () => {
+    // Partial constants object — missing aotcMax / llcRate / llcMaxExpenses /
+    // aotcRefundablePct → defaults fire ($2500 / 20% / $10k / 40%).
+    const minimalEdu = {
+      aotcPhaseout: EDU.aotcPhaseout,
+      llcPhaseout: EDU.llcPhaseout,
+      studentLoanInterestLimit: 2500,
+      studentLoanInterestPhaseout: EDU.studentLoanInterestPhaseout,
+      educatorExpenseLimit: 300,
+      aotcFirstTierExpense: 2000,
+      aotcFirstTierRate: 1,
+      aotcSecondTierRate: 0.25,
+    } as unknown as EducationConstants;
+    const r = computeForm8863(
+      [student({ creditType: 'aotc', qualifiedExpenses: 4000, isEligibleForAotc: true, priorAotcYears: 0 })],
+      50000,
+      'single',
+      minimalEdu,
+    );
+    // 2000 @ 100% + 2000 @ 25% = $2,500 (default aotcMax).
+    expect(r.aotcTentative).toBe(2500);
+    expect(r.aotcAllowed).toBe(2500);
+    expect(r.refundablePortion).toBe(1000); // default 40%
+  });
+
+  it('AOTC student without priorAotcYears field falls through ?? 0 default', () => {
+    // priorAotcYears absent → treated as 0 → eligible.
+    const s = student({ creditType: 'aotc', qualifiedExpenses: 4000, isEligibleForAotc: true });
+    delete (s as { priorAotcYears?: number }).priorAotcYears;
+    const r = computeForm8863([s], 50000, 'single', EDU);
+    expect(r.aotcTentative).toBe(2500);
   });
 });

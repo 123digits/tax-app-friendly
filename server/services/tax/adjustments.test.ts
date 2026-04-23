@@ -165,3 +165,33 @@ describe('computeSchedule1Adjustments + total', () => {
     expect(totalSchedule1Adjustments(lines)).toBe(9200);
   });
 });
+
+describe('adjustments — undefined-constants safety paths', () => {
+  it('cappedEducatorExpenses returns 0 when edu is undefined', () => {
+    expect(cappedEducatorExpenses(500, 'single', undefined)).toBe(0);
+  });
+
+  it('phasedStudentLoanInterest returns 0 when edu is undefined', () => {
+    expect(phasedStudentLoanInterest(2500, 50000, 'single', undefined)).toBe(0);
+  });
+
+  it('phasedStudentLoanInterest returns raw when phaseout range is missing', () => {
+    // Education constants with no phase-out range for the filing status →
+    // function falls through to the raw deduction (capped only).
+    const eduNoRange = { ...edu, studentLoanInterestPhaseout: {
+      single: { start: 0, end: 0 },
+      mfj: { start: 0, end: 0 },
+      mfs: { start: 0, end: 0 },
+      hoh: { start: 0, end: 0 },
+      qw: { start: 0, end: 0 },
+    } };
+    // With start = end = 0, the `range.end <= range.start` branch fires and
+    // returns the raw capped deduction.
+    expect(phasedStudentLoanInterest(3000, 50000, 'single', eduNoRange)).toBe(2500);
+  });
+
+  it('cappedIraDeduction returns raw entered when retirement constants are undefined', () => {
+    expect(cappedIraDeduction(15000, 55, undefined)).toBe(15000);
+    expect(cappedIraDeduction(-500, 40, undefined)).toBe(0);
+  });
+});

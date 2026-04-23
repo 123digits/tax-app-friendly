@@ -140,4 +140,50 @@ describe('computeScheduleR', () => {
     expect(out.creditBase).toBe(0);
     expect(out.credit).toBe(0);
   });
+
+  it('MFJ only spouse eligible (taxpayer ineligible) → base $5,000', () => {
+    // Exercises the `taxpayerEligible || spouseEligible` second-disjunct path.
+    const out = computeScheduleR(
+      r({ isTaxpayerEligible: false, isSpouseEligible: true }),
+      10000,
+      'mfj',
+    );
+    expect(out.baseAmount).toBe(5000);
+  });
+
+  it('MFS spouse-only eligible → base 0 (MFS consults taxpayer only)', () => {
+    // `return taxpayerEligible ? baseMfs : 0` false branch. Since
+    // spouseEligible=true prevents the initial zero-out guard from firing,
+    // we reach baseForStatus and take the taxpayerEligible=false branch.
+    const out = computeScheduleR(
+      r({ isTaxpayerEligible: false, isSpouseEligible: true }),
+      0,
+      'mfs',
+    );
+    expect(out.baseAmount).toBe(0);
+    expect(out.credit).toBe(0);
+  });
+
+  it('single spouse-only eligible → base 0 (single/HOH consults taxpayer only)', () => {
+    // Exercises the `taxpayerEligible ? baseSingle : 0` false branch on single.
+    const out = computeScheduleR(
+      r({ isTaxpayerEligible: false, isSpouseEligible: true }),
+      0,
+      'single',
+    );
+    expect(out.baseAmount).toBe(0);
+    expect(out.credit).toBe(0);
+  });
+
+  it('falls back to statutory defaults when constants arg is undefined', () => {
+    // Exercises `constants?.X ?? default` paths. Single 65+, AGI $10k, no SS
+    // → credit = ($5000 − $1250) × 0.15 = $562.50 → rounds to $563.
+    const out = computeScheduleR(
+      r({ isTaxpayerEligible: true }),
+      10000,
+      'single',
+      undefined,
+    );
+    expect(out.credit).toBe(563);
+  });
 });

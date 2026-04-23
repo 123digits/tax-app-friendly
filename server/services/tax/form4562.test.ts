@@ -105,4 +105,64 @@ describe('summarizeDepreciation', () => {
     );
     expect(r.totalSection179).toBeCloseTo(1000, 2);
   });
+
+  it('disallowed §179 rolls forward into bonus + MACRS on pro-rata reduce path', () => {
+    // Exercises the `a.claimBonus ? remainingAfterS179 * bonusPct : 0` path
+    // inside the §179-excess proration block.
+    const small: DepreciationConstants = {
+      section179Limit: 1000,
+      section179Phaseout: 10_000_000,
+      bonusPct: 0.5,
+      firstYearMacrs: MACRS_TABLE,
+    };
+    const r = summarizeDepreciation(
+      [
+        asset({ id: 'a', cost: 4000, macrsClass: '5', section179Election: 4000, claimBonus: true }),
+        asset({ id: 'b', cost: 4000, macrsClass: '5', section179Election: 4000, claimBonus: true }),
+      ],
+      small,
+    );
+    expect(r.totalSection179).toBeCloseTo(1000, 2);
+    // $1,000 cap allocated proportionally → $500 each. Remaining $3,500 each
+    // gets 50% bonus ($1,750) + MACRS on $1,750 × 20% ($350).
+    expect(r.totalBonus).toBeCloseTo(3500, 2);
+    expect(r.totalMacrs).toBeCloseTo(700, 2);
+  });
+
+  it('businessUsePercent of 0 falls back to 1 (legacy-blank-field fallback)', () => {
+    // `n(a.businessUsePercent) || 1` — 0 is treated as 100% for ergonomics
+    // when users leave the field blank.
+    const r = summarizeDepreciation(
+      [asset({ cost: 10000, macrsClass: '5', businessUsePercent: 0 })],
+      C,
+    );
+    expect(r.totalMacrs).toBeCloseTo(2000, 2);
+  });
+
+  it('unknown macrsClass falls back to 10% first-year rate', () => {
+    const r = summarizeDepreciation(
+      [asset({ cost: 10000, macrsClass: 'nonexistent' as '5' })],
+      C,
+    );
+    expect(r.totalMacrs).toBeCloseTo(1000, 2);
+  });
+
+  it('throws when depreciation constants lack firstYearMacrs map', () => {
+    expect(() =>
+      summarizeDepreciation(
+        [asset({ cost: 10000, macrsClass: '5' })],
+        { section179Limit: 1000, section179Phaseout: 0, bonusPct: 0 } as unknown as DepreciationConstants,
+      ),
+    ).toThrow(/firstYearMacrs/);
+  });
+
+  it('falls back to zero limits when all numeric constants are omitted', () => {
+    // `constants?.section179Limit ?? 0` etc. default paths.
+    const r = summarizeDepreciation(
+      [asset({ cost: 10000, macrsClass: '5', section179Election: 50000 })],
+      { firstYearMacrs: MACRS_TABLE } as unknown as DepreciationConstants,
+    );
+    // Limit 0 → all §179 elections zeroed via pro-rata.
+    expect(r.totalSection179).toBe(0);
+  });
 });

@@ -268,4 +268,65 @@ describe('ReviewSection', () => {
     }
     expect(router.currentRoute.value.path).toBe('/');
   });
+
+  it('renders every Schedule-2-Part-II + refundable-credit row when all are non-zero', async () => {
+    // Exercises the v-if branches for rarely-populated rows: HSA excess
+    // contribution, Schedule H household-employment tax, Form 5405 FTHB
+    // repayment, Form 4972 lump-sum averaging, Form 2210 underpayment
+    // penalty, and the refundable-credit block (ACTC / AOTC / EITC / PTC).
+    const fullComputed = {
+      ...richComputed(),
+      form8889: {
+        contributionLimit: 4150, allowedDeduction: 2000,
+        excessContribution: 500, taxableDistribution: 100, additionalTax: 20,
+      },
+      otherTaxes: {
+        seTax: 3000, earlyWithdrawalPenalty: 100, hsaAdditionalTax: 20,
+        aptcRepayment: 500, amt: 100, niit: 200, additionalMedicare: 50,
+        householdEmploymentTax: 200,
+        firstTimeHomebuyerRepayment: 100,
+        lumpSumAveragingTax: 50,
+        underpaymentPenalty: 75,
+        total: 4395,
+      },
+      refundableCredits: {
+        additionalChildTaxCredit: 800,
+        refundableAotc: 500,
+        earnedIncomeCredit: 400,
+        netPremiumTaxCredit: 200,
+        total: 1900,
+      },
+      form6251: { amtLiability: 150, tentativeMinimumTax: 250, amti: 120000, exemption: 85000 },
+      form8960: { niit: 200, amountSubjectToNiit: 5000, netInvestmentIncome: 7000 },
+      form8959: {
+        additionalMedicareTax: 50,
+        additionalMedicareWithheld: 25,
+        seIncome: 20000,
+        rrtaCompensation: 1000,
+      },
+      scheduleH: { totalHouseholdEmploymentTax: 200, ssMedicareTax: 150, futaTax: 50 },
+      form5405: { repaymentThisYear: 100, balanceRemaining: 1000 },
+      form4972: { electedTax: 50, qualifyingLumpSum: 2000 },
+    };
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.computed = fullComputed as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const html = wrapper.html();
+    // Each of these strings only appears when its v-if fires.
+    expect(html).toMatch(/Excess/i);
+    expect(html).toMatch(/household.*employment/i);
+    expect(html).toMatch(/first.*time.*homebuyer/i);
+    expect(html).toMatch(/lump[- ]sum/i);
+    expect(html).toMatch(/underpayment/i);
+    expect(html).toMatch(/earned income/i);
+  });
 });
