@@ -125,6 +125,12 @@ describe('ScheduleESection', () => {
       await addRental.trigger('click');
       await flush();
     }
+    // Switch to the Royalties tab so the "Add royalty" button is rendered.
+    const royaltiesTab = wrapper.findAll('button').find((b) => /^Royalties$/i.test(b.text().trim()));
+    if (royaltiesTab) {
+      await royaltiesTab.trigger('click');
+      await flush();
+    }
     const addRoyalty = wrapper.findAll('button').find((b) => /Add royalty/i.test(b.text()));
     if (addRoyalty) {
       await addRoyalty.trigger('click');

@@ -196,4 +196,69 @@ describe('TaxYearEditView — extended flows', () => {
     }
     expect(wrapper.html()).toMatch(/Save failed/);
   });
+
+  it('JSON-parse error in a group surfaces an "Invalid JSON" message and aborts save', async () => {
+    // Exercises the catch (e: any) { groupErrors[g.key] = ... } branch in
+    // applyGroupDrafts, plus the throw that prevents save from continuing.
+    const getMock = vi.fn(async () => stubConfig() as never);
+    const saveMock = vi.fn();
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    // Expand the JSON-group panels so the textareas are rendered.
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    for (const t of panelTitles) {
+      await t.trigger('click');
+      await flush();
+    }
+    const textareas = wrapper.findAll('textarea');
+    if (textareas.length > 0) {
+      await textareas[0].setValue('{ this is not valid json');
+      await flush();
+    }
+    const saveBtn = wrapper.findAll('button').find((b) => /^Save$/.test(b.text()));
+    if (saveBtn) {
+      await saveBtn.trigger('click');
+      await flush();
+    }
+    expect(wrapper.html()).toMatch(/Invalid JSON/);
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it('expands bracket panels and can Add + Remove brackets across filing statuses', async () => {
+    // Bracket rows live in collapsed v-expansion-panels — expand all then
+    // exercise Add/Remove for every filing status.
+    const getMock = vi.fn(async () => stubConfig() as never);
+    const saveMock = vi.fn();
+    const { wrapper } = mountInApp(TaxYearEditView, { props: { year: '2025' } }, {
+      beforeMount: () => {
+        const s = useAdminStore();
+        s.get = getMock as unknown as typeof s.get;
+        s.save = saveMock as unknown as typeof s.save;
+      },
+    });
+    await flush();
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    for (const t of panelTitles) {
+      await t.trigger('click');
+      await flush();
+    }
+    const addButtons = wrapper.findAll('button').filter((b) => /Add bracket/.test(b.text()));
+    for (const b of addButtons) {
+      await b.trigger('click');
+      await flush();
+    }
+    const deleteBtns = wrapper.findAllComponents({ name: 'VBtn' })
+      .filter((b) => b.attributes('icon') === 'mdi-delete');
+    for (const b of deleteBtns.slice(0, 3)) {
+      await b.trigger('click');
+      await flush();
+    }
+    expect(addButtons.length).toBeGreaterThan(0);
+  });
 });

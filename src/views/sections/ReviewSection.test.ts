@@ -269,6 +269,89 @@ describe('ReviewSection', () => {
     expect(router.currentRoute.value.path).toBe('/');
   });
 
+  it('renders deep Form 8889 / Form 8959 / Schedule H detail rows when populated', async () => {
+    // Exercises rare v-if rows: form8889.taxableDistribution + additionalTax,
+    // form8959.{seIncome,rrtaCompensation,additionalMedicareWithheld},
+    // scheduleH.{futaTax,federalIncomeTaxWithheld}.
+    const detailedComputed = {
+      ...richComputed(),
+      form8889: {
+        contributionLimit: 4150, allowedDeduction: 2000,
+        excessContribution: 0, taxableDistribution: 750, additionalTax: 150,
+      },
+      form8959: {
+        additionalMedicareTax: 100,
+        additionalMedicareWithheld: 50,
+        seIncome: 30000,
+        rrtaCompensation: 2000,
+      },
+      scheduleH: {
+        totalHouseholdEmploymentTax: 300,
+        ssMedicareTax: 200,
+        futaTax: 50,
+        federalIncomeTaxWithheld: 25,
+      },
+    };
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.computed = detailedComputed as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const html = wrapper.html();
+    expect(html).toMatch(/SE income/i);
+    expect(html).toMatch(/RRTA/i);
+    expect(html).toMatch(/FUTA/i);
+  });
+
+  it('falls back to raw filing-status string when label map lacks the key', async () => {
+    // Exercises `filingStatusLabel[c.filingStatus] || c.filingStatus` right
+    // branch — when the computed return uses an unmapped status string.
+    const customFilingStatus = {
+      ...richComputed(),
+      filingStatus: 'unknown-status',
+    };
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stubTaxStoreData() as never;
+        s.computed = customFilingStatus as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/unknown-status/);
+  });
+
+  it('handles taxStore.data with no estimatedPayments field (?? 0 fallback)', async () => {
+    // Exercises `taxStore.data?.estimatedPayments ?? 0` falsy branch when
+    // the field is missing on the loaded TaxReturn.
+    const stripped = stubTaxStoreData() as unknown as Record<string, unknown>;
+    delete stripped.estimatedPayments;
+    const { wrapper } = mountInApp(ReviewSection, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        s.data = stripped as never;
+        s.computed = richComputed() as never;
+        s.load = vi.fn() as unknown as typeof s.load;
+        s.refreshComputed = vi.fn() as unknown as typeof s.refreshComputed;
+        s.saveMeta = vi.fn() as unknown as typeof s.saveMeta;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toBeTruthy();
+  });
+
   it('renders every Schedule-2-Part-II + refundable-credit row when all are non-zero', async () => {
     // Exercises the v-if branches for rarely-populated rows: HSA excess
     // contribution, Schedule H household-employment tax, Form 5405 FTHB

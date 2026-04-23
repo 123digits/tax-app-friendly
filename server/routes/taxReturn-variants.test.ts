@@ -327,3 +327,160 @@ describe('loadFullReturn — Schedule 1 alimony fields', () => {
     expect(body.schedule1Adjustments.alimonyDivorceDate).toBe('2015-06-01');
   });
 });
+
+// Minimal-payload roundtrips that exercise the save-side `?? null`
+// fallback for each list endpoint's nullable-optional string fields
+// (payer / employer / description / businessName / etc.).
+describe('loadFullReturn — minimal-payload save-side null fallbacks', () => {
+  async function post(path: string, body: object, cookies: string[]) {
+    return request(app).put(`/api/return/${path}`).set('Cookie', cookies).send(body);
+  }
+
+  it('accepts a w2 row with only box1Wages (employer/ein omitted → null)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('w2', [{ box1Wages: 1000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts an interest row with only amount (payer omitted → null)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('interest', [{ amount: 50 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a dividend row with only ordinary (payer omitted → null)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('dividends', [{ ordinary: 100 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a self-employment row with only grossReceipts', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('self-employment', [{ grossReceipts: 50000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a capital-gains row with only proceeds + term', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('capital-gains', [{ proceeds: 500, term: 'long' }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a retirement row with only grossDistribution', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('retirement-income', [{ grossDistribution: 1000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts an unemployment row with only amount', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('unemployment', [{ amount: 200 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a gambling row with only winnings', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('gambling', [{ winnings: 300 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts an other-income row with only source + amount', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('other-income', [{ source: 'jury_duty', amount: 75 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a schedule-e-rental row with ONLY rentsReceived (address omitted)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('schedule-e-rental', [{ rentsReceived: 12000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a schedule-e-royalty row with ONLY grossRoyalties (source omitted)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('schedule-e-royalty', [{ grossRoyalties: 500 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a k1 row with only entityKind + ordinaryBusinessIncome', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('k1-income', [{
+      entityKind: 'partnership',
+      ordinaryBusinessIncome: 1000,
+    }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a farm row with only grossIncome (farmName omitted)', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('schedule-f-farm', [{ grossIncome: 5000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a form4797 row with only proceeds + term', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('form-4797', [{ proceeds: 1000, term: 'long_1231' }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a depreciation-asset row with only cost', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('depreciation-assets', [{ cost: 5000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a home-office row with only squareFeet', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('home-offices', [{ squareFeet: 150 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a form8863-student row with only creditType + qualifiedExpenses', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('form-8863-students', [{
+      creditType: 'llc',
+      qualifiedExpenses: 3000,
+    }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a form8936-vehicle row with only purchasePrice', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('form-8936-vehicles', [{ purchasePrice: 30000 }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a form1116-basket row with only category + foreignTaxPaid', async () => {
+    const { cookies } = await authedUser();
+    const res = await post('form-1116-baskets', [{
+      category: 'passive',
+      foreignTaxPaid: 100,
+    }], cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts personal-info with every optional field omitted', async () => {
+    const { cookies } = await authedUser();
+    const res = await request(app)
+      .put('/api/return/personal-info')
+      .set('Cookie', cookies)
+      .send({});
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts form-8995 with an activity lacking name + ein', async () => {
+    // Exercises `a.name ?? null` and `a.ein ?? null` null-fallback branches
+    // for a QBI activity row that only has a qbi number.
+    const { cookies } = await authedUser();
+    const res = await request(app)
+      .put('/api/return/form-8995')
+      .set('Cookie', cookies)
+      .send({
+        activities: [{ qbi: 50000 }],
+        reitPtpDividends: 0,
+        priorYearQbiLossCarry: 0,
+        priorYearReitPtpLossCarry: 0,
+      });
+    expect(res.status).toBe(200);
+  });
+});

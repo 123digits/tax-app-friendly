@@ -114,6 +114,39 @@ describe('PersonalInfoSection', () => {
     expect(router.currentRoute.value.path).toBe('/');
   });
 
+  it('onBack on step > 1 decrements the step instead of navigating home', async () => {
+    // Exercises `else step.value = step.value - 1` branch by checking the
+    // step header changes from 2 back to 1 (rather than the route changing).
+    const initial = stubTaxStoreData({
+      filingStatus: 'single',
+      personalInfo: {
+        firstName: 'Jane', lastName: 'Doe', ssnLast4: null, dob: null,
+        addressLine1: '1 Main', addressLine2: null, city: 'Town',
+        state: 'CA', zip: '94000',
+        spouseFirstName: null, spouseLastName: null,
+        spouseSsnLast4: null, spouseDob: null,
+      },
+    });
+    const { wrapper } = setup(initial);
+    await flushAll();
+    // Advance to step 2.
+    const nextBtn1 = wrapper.findAllComponents({ name: 'VBtn' })
+      .find((b) => /next|finish/i.test(b.text()));
+    if (nextBtn1) {
+      await nextBtn1.trigger('click');
+      await flushAll();
+    }
+    // The "Step 2 of 4" indicator should now be present.
+    expect(wrapper.html()).toMatch(/2 of 4|Step 2/);
+    // Click Back — should return to step 1.
+    const backBtn = wrapper.findAllComponents({ name: 'VBtn' }).find((b) => /^Back/.test(b.text()));
+    if (backBtn) {
+      await backBtn.trigger('click');
+      await flushAll();
+    }
+    expect(wrapper.html()).toMatch(/1 of 4|Step 1/);
+  });
+
   it('loads gracefully when personalInfo fields are all null', async () => {
     // Exercises the `?? ''` fallbacks for firstName/lastName/dob/addressLine1/
     // city/state/zip when the return is a brand-new blank one.
@@ -127,6 +160,42 @@ describe('PersonalInfoSection', () => {
     const { wrapper } = setup(blank);
     await flushAll();
     expect(wrapper.html()).toBeTruthy();
+  });
+
+  it('saveDependents maps each row through to saveList payload', async () => {
+    // Exercises lines inside `saveDependents()` map: each `d.id`, `d.name`,
+    // `d.ssnInput || null`, etc. that fire only when dependents is
+    // non-empty at finish time. Preloading personalInfo keeps canNext()
+    // happy on every step.
+    const initial = stubTaxStoreData({
+      filingStatus: 'single',
+      personalInfo: {
+        firstName: 'Jane', lastName: 'Doe', ssnLast4: null, dob: '1980-01-01',
+        addressLine1: '1 Main', addressLine2: null,
+        city: 'City', state: 'CA', zip: '94000',
+        spouseFirstName: null, spouseLastName: null, spouseSsnLast4: null, spouseDob: null,
+      },
+      dependents: [
+        { id: 'kid1', name: 'Kid One', ssnLast4: '1234', relationship: 'son',
+          dob: '2015-01-01', isQualifyingChild: true },
+      ],
+    });
+    const { wrapper, saveList } = setup(initial);
+    await flushAll();
+    // Skip through steps 1 → 2 → 3 → 4 → finish.
+    for (let i = 0; i < 4; i++) {
+      const nextBtn = wrapper.findAllComponents({ name: 'VBtn' })
+        .find((b) => /next|finish/i.test(b.text()));
+      if (nextBtn) {
+        await nextBtn.trigger('click');
+        await flushAll();
+      }
+    }
+    const dependentsCall = saveList.mock.calls.find((c) => c[0] === 'dependents');
+    expect(dependentsCall).toBeTruthy();
+    const payload = dependentsCall?.[1] as Array<{ id: string; name: string }>;
+    expect(payload[0].id).toBe('kid1');
+    expect(payload[0].name).toBe('Kid One');
   });
 
   it('savePersonal forwards non-null ssn/dob/spouse values when populated', async () => {

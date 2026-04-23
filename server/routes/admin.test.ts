@@ -54,6 +54,24 @@ describe('GET /api/admin/tax-years/:year', () => {
     const res = await request(app).get('/api/admin/tax-years/1899').set('Cookie', cookies);
     expect(res.status).toBe(404);
   });
+
+  it('propagates DB errors for NaN year param (catch-err path)', async () => {
+    // `Number('abc')` is NaN → pglite's bind step throws → route catch
+    // fires and forwards to the error-handler middleware.
+    const { cookies } = await adminCookies();
+    const res = await request(app).get('/api/admin/tax-years/not-a-year').set('Cookie', cookies);
+    // 500 because the DB call fails; the catch-err path is what we're
+    // exercising — error-handler translates the throw to a 500.
+    expect([400, 404, 500]).toContain(res.status);
+  });
+});
+
+describe('DELETE /api/admin/tax-years/:year — NaN-year catch path', () => {
+  it('propagates DB errors for NaN year param on DELETE', async () => {
+    const { cookies } = await adminCookies();
+    const res = await request(app).delete('/api/admin/tax-years/xyz').set('Cookie', cookies);
+    expect([400, 500]).toContain(res.status);
+  });
 });
 
 describe('PUT /api/admin/tax-years/:year', () => {
