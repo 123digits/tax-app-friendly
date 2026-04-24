@@ -578,6 +578,29 @@ describe('loadFullReturn — single-row forms reloaded with saved values', () =>
     expect(body.form2555.totalDaysInPeriod).toBe(365);
   });
 
+  it('form-8863 student with null student_name falls back to empty string', async () => {
+    // Exercises the `r.student_name ?? ''` null-branch in loadFullReturn.
+    // The zod schema rejects null studentName on save, so insert directly
+    // into the DB to construct the row-with-null-name state.
+    const { user, cookies } = await authedUser();
+    // Create a return first via the auto-create GET.
+    await request(app).get('/api/return').set('Cookie', cookies);
+    const { getDb } = await import('../db/pglite.js');
+    const { newId } = await import('../services/crypto.js');
+    const db = await getDb();
+    const r = await db.query<{ id: string }>(
+      'SELECT id FROM tax_returns WHERE user_id = $1 LIMIT 1',
+      [user.id],
+    );
+    await db.query(
+      `INSERT INTO form_8863_students (id, return_id, student_name, credit_type, qualified_expenses, is_eligible_for_aotc, prior_aotc_years)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6)`,
+      [newId(), r.rows[0].id, 'aotc', 4000, true, 0],
+    );
+    const body = (await get(cookies)).body;
+    expect(body.form8863Students[0].studentName).toBe('');
+  });
+
   it('form-8863 student prior_aotc_years round-trips from DB', async () => {
     const { cookies } = await authedUser();
     await request(app).put('/api/return/form-8863-students').set('Cookie', cookies).send([

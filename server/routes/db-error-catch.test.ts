@@ -200,4 +200,93 @@ describe('route catch(err) paths — non-DB service failures', () => {
       spy.mockRestore();
     }
   });
+
+  // The remaining uncovered catches on /list, /available-years, and
+  // /carryforwards call db.query() directly, not a service function. To
+  // force just the route-body db.query() to fail (without breaking
+  // requireAuth's own db.query on the sessions table), return a db
+  // object whose query method throws on every call AFTER the first
+  // session lookup.
+  it('GET /api/return/list → 500 when db.query throws in route body', async () => {
+    const user = await createUser();
+    const cookies = await loginAs(app, user);
+    const realDb = await pglite.getDb();
+    let callCount = 0;
+    const spy = vi.spyOn(pglite, 'getDb').mockImplementation(async () => {
+      return new Proxy(realDb, {
+        get(target, prop) {
+          if (prop === 'query') {
+            return async (...args: unknown[]) => {
+              callCount++;
+              // Let the first query (session lookup) go through; throw
+              // on subsequent queries (the route's own body).
+              if (callCount > 1) throw new Error('synthetic route-query error');
+              return (target as unknown as Record<string, (...a: unknown[]) => unknown>).query.apply(target, args);
+            };
+          }
+          return (target as unknown as Record<string, unknown>)[prop as string];
+        },
+      });
+    });
+    try {
+      const res = await request(app).get('/api/return/list').set('Cookie', cookies);
+      expect(res.status).toBe(500);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('GET /api/return/available-years → 500 when db.query throws in route body', async () => {
+    const user = await createUser();
+    const cookies = await loginAs(app, user);
+    const realDb = await pglite.getDb();
+    let callCount = 0;
+    const spy = vi.spyOn(pglite, 'getDb').mockImplementation(async () => {
+      return new Proxy(realDb, {
+        get(target, prop) {
+          if (prop === 'query') {
+            return async (...args: unknown[]) => {
+              callCount++;
+              if (callCount > 1) throw new Error('synthetic route-query error');
+              return (target as unknown as Record<string, (...a: unknown[]) => unknown>).query.apply(target, args);
+            };
+          }
+          return (target as unknown as Record<string, unknown>)[prop as string];
+        },
+      });
+    });
+    try {
+      const res = await request(app).get('/api/return/available-years').set('Cookie', cookies);
+      expect(res.status).toBe(500);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('GET /api/return/carryforwards → 500 when db.query throws in route body', async () => {
+    const user = await createUser();
+    const cookies = await loginAs(app, user);
+    const realDb = await pglite.getDb();
+    let callCount = 0;
+    const spy = vi.spyOn(pglite, 'getDb').mockImplementation(async () => {
+      return new Proxy(realDb, {
+        get(target, prop) {
+          if (prop === 'query') {
+            return async (...args: unknown[]) => {
+              callCount++;
+              if (callCount > 1) throw new Error('synthetic route-query error');
+              return (target as unknown as Record<string, (...a: unknown[]) => unknown>).query.apply(target, args);
+            };
+          }
+          return (target as unknown as Record<string, unknown>)[prop as string];
+        },
+      });
+    });
+    try {
+      const res = await request(app).get('/api/return/carryforwards').set('Cookie', cookies);
+      expect(res.status).toBe(500);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

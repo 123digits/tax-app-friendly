@@ -84,4 +84,32 @@ describe('api client', () => {
     const r = await api.get<unknown>('/api/x');
     expect(r).toBeNull();
   });
+
+  it('treats missing content-type header as empty string (data=null)', async () => {
+    // Exercises the `res.headers.get('content-type') || ''` right-side
+    // branch when the response has no content-type header.
+    const r = {
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      json: async () => ({ ignored: true }),
+    };
+    (globalThis as { fetch: unknown }).fetch = vi.fn().mockResolvedValue(r);
+    const out = await api.get<unknown>('/api/x');
+    expect(out).toBeNull();
+  });
+
+  it('api.post with no body defaults to {} (body ?? {} right branch)', async () => {
+    const fetchMock = mockFetch({ json: async () => ({ ok: true }) });
+    await api.post('/api/x');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBe('{}');
+  });
+
+  it('api.put with no body defaults to {}', async () => {
+    const fetchMock = mockFetch({ json: async () => ({ ok: true }) });
+    await api.put('/api/x');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBe('{}');
+  });
 });

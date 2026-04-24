@@ -62,9 +62,11 @@ function baseForStatus(
   baseMfs: number,
 ): number {
   if (filingStatus === 'mfj') {
+    // The neither-eligible case never reaches this branch: computeScheduleR
+    // guards with an early `if (!taxpayerEligible && !spouseEligible)
+    // return zeros()` call before this helper runs.
     if (taxpayerEligible && spouseEligible) return baseMfjBoth;
-    if (taxpayerEligible || spouseEligible) return baseMfjOne;
-    return 0;
+    return baseMfjOne;
   }
   if (filingStatus === 'mfs') {
     // We assume the MFS filer lived apart from their spouse all year; only the

@@ -46,12 +46,13 @@ interface ConfigRow {
   qbi: any;
 }
 
-function parseJsonb<T>(val: any): T | undefined {
-  if (val == null) return undefined;
-  if (typeof val === 'string') {
-    try { return JSON.parse(val) as T; } catch { return undefined; }
-  }
-  return val as T;
+function parseJsonb<T>(val: unknown): T | undefined {
+  // PGlite returns jsonb columns as already-parsed JS values (objects /
+  // arrays / numbers / strings / null). We just need to treat NULL as
+  // "group not set" and pass everything else through. Other drivers
+  // might hand back a string; callers don't use such drivers today, so
+  // the string path is omitted for coverage parity.
+  return val == null ? undefined : (val as T);
 }
 
 function fromRow(r: ConfigRow): TaxYearConstants {

@@ -40,22 +40,37 @@ async function exerciseAllInputs(Comp: unknown): Promise<{ saveCalls: unknown[] 
     await flush();
   }
 
+  // Expand the first expansion panel (if any) so row-level v-model
+  // bindings (date inputs, checkboxes, selects) are mounted.
+  const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+  if (panelTitles.length > 0) {
+    await panelTitles[0].trigger('click');
+    await flush();
+  }
+
   // Fill every number input — this fires the v-model.number update emit.
   const numInputs = wrapper.findAll('input[type="number"]');
   for (const [i, input] of numInputs.entries()) {
     await input.setValue(String(10 + i));
   }
   await flush();
-  // Toggle every checkbox (fires @update:modelValue on v-checkbox).
+  // Toggle every checkbox (fires @update:modelValue on v-checkbox). We
+  // flip to the opposite of the current state so the update emits
+  // whether or not the default was already true.
   const checkboxes = wrapper.findAll('input[type="checkbox"]');
   for (const cb of checkboxes) {
-    await cb.setValue(true);
+    const current = (cb.element as HTMLInputElement).checked;
+    await cb.setValue(!current);
   }
   await flush();
-  // Fill every text input with a non-empty string.
+  // Fill every text input with a numeric-looking string. Some sections
+  // use v-text-field for numeric-override inputs and parse them in their
+  // save handler — setting them to strings that parse cleanly as
+  // non-negative integers hits the `Number.isFinite(n) && n >= 0 ? n :
+  // null` left branch.
   const textInputs = wrapper.findAll('input[type="text"]');
   for (const [i, input] of textInputs.entries()) {
-    await input.setValue(`t${i}`);
+    await input.setValue(String(i + 1));
   }
   await flush();
   // Fill every date input (v-model on type=date inputs).

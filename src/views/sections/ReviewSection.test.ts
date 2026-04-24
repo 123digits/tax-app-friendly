@@ -101,6 +101,11 @@ describe('ReviewSection', () => {
     });
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
+    // Set the estimated-payments input to exercise the v-model setter.
+    for (const input of wrapper.findAll('input[type="text"]')) {
+      await input.setValue('500');
+    }
+    await new Promise((r) => setTimeout(r, 0));
     const saveBtn = wrapper.findAll('button').find((b) => /save|update/i.test(b.text()));
     if (saveBtn) {
       await saveBtn.trigger('click');

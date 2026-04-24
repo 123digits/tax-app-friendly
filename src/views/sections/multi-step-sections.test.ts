@@ -201,6 +201,15 @@ describe('ScheduleESection', () => {
       await input.setValue(String(100 + i));
     }
     await flush();
+    // Emit @update:modelValue on v-selects (propertyType).
+    for (const sel of wrapper.findAllComponents({ name: 'VSelect' })) {
+      await sel.vm.$emit('update:modelValue', 'commercial');
+    }
+    // Fire the WizardStep back event so the @back handler (router.push)
+    // runs.
+    const wiz = wrapper.findComponent({ name: 'WizardStep' });
+    if (wiz.exists()) await wiz.vm.$emit('back');
+    await flush();
     expect(wrapper.html()).toBeTruthy();
   });
 

@@ -165,4 +165,29 @@ describe('summarizeDepreciation', () => {
     // Limit 0 → all §179 elections zeroed via pro-rata.
     expect(r.totalSection179).toBe(0);
   });
+
+  it('pro-rata §179 reduction with unknown macrs class + zero businessUsePercent', () => {
+    // Inside the §179-excess reduction branch (second pass), exercises the
+    // `n(a.businessUsePercent) || 1` and `macrsTable[a.macrsClass] ?? 0.1`
+    // right-side branches simultaneously.
+    const small: DepreciationConstants = {
+      section179Limit: 500,
+      section179Phaseout: 10_000_000,
+      bonusPct: 0,
+      firstYearMacrs: MACRS_TABLE,
+    };
+    const r = summarizeDepreciation(
+      [
+        asset({ id: 'a', cost: 2000,
+          macrsClass: 'unknown-class' as '5',
+          section179Election: 2000,
+          businessUsePercent: 0 }),
+        asset({ id: 'b', cost: 2000, macrsClass: '5', section179Election: 2000 }),
+      ],
+      small,
+    );
+    // §179 cap $500 → pro-rata → two assets split $500. Unknown macrs
+    // class falls back to 10% MACRS rate on the reduced basis.
+    expect(r.totalSection179).toBeCloseTo(500, 2);
+  });
 });

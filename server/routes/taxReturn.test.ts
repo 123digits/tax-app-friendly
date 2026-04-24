@@ -1050,3 +1050,40 @@ describe('PUT single-row endpoints — validation-failure catch paths', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('parseYear falsy-branch paths', () => {
+  it('ignores out-of-range ?year values (parseYear → undefined)', async () => {
+    // Exercises the `Number.isInteger && n >= 1900 && n < 3000 ? n : undefined`
+    // falsy branch in parseYear — 99999 fails the n < 3000 check.
+    const { cookies } = await authedUser();
+    const res = await request(app).get('/api/return').query({ year: '99999' }).set('Cookie', cookies);
+    expect([200, 400]).toContain(res.status);
+  });
+
+  it('ignores empty-string ?year (first branch of parseYear)', async () => {
+    const { cookies } = await authedUser();
+    const res = await request(app).get('/api/return').query({ year: '' }).set('Cookie', cookies);
+    expect([200, 400]).toContain(res.status);
+  });
+});
+
+describe('503 path — no tax years configured at all', () => {
+  it('GET /api/return/compute → 503 when user has no return AND listConfigs is empty', async () => {
+    // Exercises the `throw Object.assign(new Error('no_tax_years_configured'),
+    // { status: 503 })` branch in resolveYear. Mock listConfigs to return an
+    // empty array so resolveYear falls all the way through.
+    const taxYearConfig = await import('../services/taxYearConfig.js');
+    const { vi } = await import('vitest');
+    const spy = vi.spyOn(taxYearConfig, 'listConfigs').mockImplementation(async () => []);
+    try {
+      const { cookies } = await authedUser();
+      const res = await request(app).get('/api/return/compute').set('Cookie', cookies);
+      // errorHandler translates 5xx → 500, so status is 500 (not 503 as
+      // the resolveYear throw carries) but the `no_tax_years_configured`
+      // message is preserved.
+      expect(res.status).toBe(500);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

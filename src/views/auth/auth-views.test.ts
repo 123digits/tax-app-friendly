@@ -78,6 +78,19 @@ describe('LoginView', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(wrapper.html()).toMatch(/boom|Login failed/);
   });
+
+  it('login failure with blank error message falls through to "Login failed."', async () => {
+    // Exercises the `e?.message || 'Login failed.'` right-side branch.
+    const { wrapper } = mountInApp(LoginView, {}, {
+      beforeMount: () => {
+        const auth = useAuthStore();
+        auth.login = vi.fn(async () => { throw new Error(''); }) as unknown as typeof auth.login;
+      },
+    });
+    await wrapper.find('form').trigger('submit.prevent');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/Login failed/);
+  });
 });
 
 describe('RegisterView', () => {

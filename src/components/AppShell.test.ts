@@ -70,4 +70,19 @@ describe('AppShell', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(router.currentRoute.value.name).toBe('login');
   });
+
+  it('refund label shows balance-due when computed.summary.balanceDue > 0', async () => {
+    // Exercises the `if (balanceDue > 0) return 'Owe $...'` branch.
+    const { wrapper } = mountInApp(AppShell);
+    const auth = useAuthStore();
+    auth.user = {
+      id: 'u', username: 'alice', email: 'a@b', emailVerified: true, isAdmin: false,
+      createdAt: new Date().toISOString(),
+    };
+    const s = useTaxReturnStore();
+    s.data = stubTaxStoreData() as never;
+    s.computed = { summary: { refund: 0, balanceDue: 500, totalTaxAfterCredits: 500 } } as never;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.html()).toMatch(/Owe \$500/);
+  });
 });

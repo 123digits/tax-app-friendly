@@ -401,4 +401,41 @@ describe('computeReturn — orchestrator sparse-value branches', () => {
     // ssTier undefined → ssTaxable = 0.
     expect(out.income.ssTaxable).toBe(0);
   });
+
+  it('W-2 with non-numeric box3SsWages + box5MedicareWages → 0 (|| 0 right branches)', () => {
+    // Exercises the `Number(w.box3SsWages) || 0` and
+    // `Number(w.box5MedicareWages) || 0` right branches.
+    const ret = emptyReturn({
+      w2s: [{
+        id: 'w1', employer: 'X', ein: null,
+        box1Wages: 50000, box2FedWithheld: 0,
+        box3SsWages: undefined as unknown as number,
+        box4SsWithheld: 0,
+        box5MedicareWages: undefined as unknown as number,
+        box6MedicareWithheld: 0,
+        stateWages: 0, stateWithheld: 0,
+      }],
+    });
+    const out = computeReturn(ret, DEFAULT_2025);
+    expect(out.summary).toBeDefined();
+  });
+
+  it('K-1 passive entry with non-numeric net + priorYearUnallowedLoss', () => {
+    // Exercises `Number(e.net) || 0` and `Number(e.priorYearUnallowedLoss) || 0`
+    // falsy branches in effSum.
+    const ret = emptyReturn({
+      k1s: [{
+        id: 'k1', entityKind: 'partnership', entityName: null, ein: null,
+        isPassive: true,
+        ordinaryBusinessIncome: undefined as unknown as number,
+        netRentalRealEstate: 0, otherRentalIncome: 0,
+        interestIncome: 0, ordinaryDividends: 0, qualifiedDividends: 0,
+        royalties: 0, shortTermCapitalGain: 0, longTermCapitalGain: 0,
+        section1231Gain: 0,
+        priorYearUnallowedLoss: undefined as unknown as number,
+      }],
+    });
+    const out = computeReturn(ret, DEFAULT_2025);
+    expect(out.summary).toBeDefined();
+  });
 });

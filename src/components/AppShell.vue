@@ -18,9 +18,9 @@ async function handleLogout() {
 }
 
 function refundLabel() {
-  const c = taxStore.computed;
-  if (!c) return '—';
-  const { refund, balanceDue } = c.summary;
+  // Only rendered when taxStore.computed is truthy (see the v-if on the
+  // v-chip below), so c is guaranteed non-null here.
+  const { refund, balanceDue } = taxStore.computed!.summary;
   if (refund > 0) return `Refund $${refund.toFixed(0)}`;
   if (balanceDue > 0) return `Owe $${balanceDue.toFixed(0)}`;
   return '$0';
