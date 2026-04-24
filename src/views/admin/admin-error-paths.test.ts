@@ -277,4 +277,54 @@ describe('AdminView error paths', () => {
     }
     expect(cloneFn).not.toHaveBeenCalled();
   });
+
+  it('error alert close handler clears error', async () => {
+    // Trigger an error (failed createBlank), then close the alert via the
+    // closable @click:close="error = null" handler.
+    const wrapper = await mountAdmin((s) => {
+      s.clone = vi.fn(async () => { throw new Error('boom'); }) as unknown as typeof s.clone;
+    });
+    const numInputs = wrapper.findAll('input[type="number"]');
+    if (numInputs.length >= 1) {
+      await numInputs[numInputs.length - 1].setValue(2099);
+    }
+    const createBtn = wrapper.findAll('button').find((b) => /^Create$/.test(b.text()));
+    if (createBtn) {
+      await createBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // Now the error alert is shown — click its close button.
+    const errorAlert = wrapper.findAllComponents({ name: 'VAlert' })
+      .find((a) => /boom|Failed to create/.test(a.html()));
+    if (errorAlert) {
+      const closeBtn = errorAlert.findAll('button')
+        .find((b) => /close/i.test(b.attributes('aria-label') ?? ''));
+      if (closeBtn) {
+        await closeBtn.trigger('click');
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+    // After close, the error alert should be gone.
+    expect(wrapper.findAllComponents({ name: 'VAlert' }).filter((a) => /boom/.test(a.html())).length).toBe(0);
+  });
+
+  it('cloneSource v-model updates via input', async () => {
+    // Exercises the `v-model="cloneSource"` setter on the source-year input.
+    const cloneFn = vi.fn();
+    const wrapper = await mountAdmin((s) => {
+      s.clone = cloneFn as unknown as typeof s.clone;
+    });
+    const numInputs = wrapper.findAll('input[type="number"]');
+    for (const [i, input] of numInputs.entries()) {
+      await input.setValue(String(2024 + i));
+    }
+    await new Promise((r) => setTimeout(r, 0));
+    const cloneBtn = wrapper.findAll('button').find((b) => /^Clone$/.test(b.text()));
+    if (cloneBtn) {
+      await cloneBtn.trigger('click');
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // cloneFn called with the values from cloneSource + cloneTarget.
+    expect(cloneFn).toHaveBeenCalled();
+  });
 });

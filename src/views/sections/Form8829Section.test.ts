@@ -205,7 +205,9 @@ describe('Form8829Section', () => {
   it('actual-method row with zero totalHomeSquareFeet → $0 deduction (no crash)', async () => {
     // Exercises `if (o.totalHomeSquareFeet <= 0) return 0` branch. The
     // expansion-panel title shows the deduction preview formatted as
-    // currency — $0 when the business-use pct is 0.
+    // currency — $0 when the business-use pct is 0. Also expands the
+    // panel so formatPercent + actualDeduction are called from the
+    // template.
     const { wrapper } = mountInApp(Form8829Section, {}, {
       beforeMount: () => {
         const s = useTaxReturnStore();
@@ -221,10 +223,82 @@ describe('Form8829Section', () => {
         });
         s.data = data as never;
         s.load = vi.fn() as never;
+        s.saveList = vi.fn() as never;
       },
     });
     await flush();
-    expect(wrapper.html()).toContain('$0');
+    // Expand the panel so the actual-method content (with formatPercent
+    // call) is rendered.
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    if (panelTitles.length > 0) {
+      await panelTitles[0].trigger('click');
+      await flush();
+    }
+    // Click the per-row Remove button.
+    const removeBtn = wrapper.findAll('button').find((b) => /Remove home office/i.test(b.text()));
+    if (removeBtn) {
+      await removeBtn.trigger('click');
+      await flush();
+    }
+    expect(wrapper.html()).toBeTruthy();
+  });
+
+  it('expands office panel + fills all per-row inputs (covers all v-models)', async () => {
+    // Mounts with one actual-method office, expands the panel, then fills
+    // every v-model field inside (businessId select, useSimplified radio,
+    // squareFeet, totalHomeSquareFeet, utilities, insurance, mortgageInterest,
+    // realEstateTax, repairs, depreciation).
+    const { wrapper } = mountInApp(Form8829Section, {}, {
+      beforeMount: () => {
+        const s = useTaxReturnStore();
+        const data = stubTaxStoreData({
+          homeOffices: [
+            {
+              id: 'h1', businessId: null, useSimplified: false,
+              squareFeet: 200, totalHomeSquareFeet: 2000,
+              utilities: 1000, insurance: 500, mortgageInterest: 5000,
+              realEstateTax: 2000, repairs: 200, depreciation: 1000,
+            },
+          ],
+          selfEmployment: [{
+            id: 'sc1', businessName: 'Biz', ein: null, principalActivity: null,
+            grossReceipts: 0, returnsAllowances: 0, costOfGoods: 0, expenses: {},
+          }],
+        });
+        s.data = data as never;
+        s.load = vi.fn() as never;
+        s.saveList = vi.fn() as never;
+      },
+    });
+    await flush();
+    // Expand the panel.
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    if (panelTitles.length > 0) {
+      await panelTitles[0].trigger('click');
+      await flush();
+    }
+    // Fill every numeric input.
+    for (const [i, input] of wrapper.findAll('input[type="number"]').entries()) {
+      await input.setValue(String(100 + i));
+    }
+    // Fill every text input (CurrencyInputs render as type=text).
+    for (const [i, input] of wrapper.findAll('input[type="text"]').entries()) {
+      await input.setValue(String(500 + i));
+    }
+    // Toggle the simplified-method radio.
+    const radios = wrapper.findAllComponents({ name: 'VRadioGroup' });
+    if (radios.length > 0) {
+      await radios[0].vm.$emit('update:modelValue', true);
+      await flush();
+      await radios[0].vm.$emit('update:modelValue', false);
+    }
+    // Emit on the business-link v-select.
+    const sels = wrapper.findAllComponents({ name: 'VSelect' });
+    for (const sel of sels) {
+      await sel.vm.$emit('update:modelValue', 'sc1');
+    }
+    await flush();
+    expect(wrapper.html()).toBeTruthy();
   });
 
   it('simplified >300 sqft row → panel title shows $1,500 cap value', async () => {

@@ -58,11 +58,34 @@ async function exerciseAllInputs(Comp: unknown): Promise<{ saveCalls: unknown[] 
     await input.setValue(`t${i}`);
   }
   await flush();
+  // Fill every date input (v-model on type=date inputs).
+  const dateInputs = wrapper.findAll('input[type="date"]');
+  for (const input of dateInputs) {
+    await input.setValue('2024-01-01');
+  }
+  await flush();
+  // Emit update on every v-select (catches v-model on enum / dropdown fields).
+  for (const sel of wrapper.findAllComponents({ name: 'VSelect' })) {
+    await sel.vm.$emit('update:modelValue', sel.props('items')?.[0]?.value ?? null);
+  }
+  await flush();
+  // Emit update on every v-radio-group.
+  for (const rg of wrapper.findAllComponents({ name: 'VRadioGroup' })) {
+    await rg.vm.$emit('update:modelValue', false);
+  }
+  await flush();
 
   // Click the primary save/next button.
   const saveBtn = wrapper.findAll('button').find((b) => /^(save|next|finish)/i.test(b.text().trim()));
   if (saveBtn) {
     await saveBtn.trigger('click');
+    await flush();
+  }
+  // Also emit the Back event on the WizardStep so the @back handler
+  // (typically `router.push('/')`) fires.
+  const wizard = wrapper.findComponent({ name: 'WizardStep' });
+  if (wizard.exists()) {
+    await wizard.vm.$emit('back');
     await flush();
   }
   return {
@@ -111,6 +134,9 @@ const SECTIONS: Array<[string, ComponentLoader]> = [
   ['GamblingSection', async () => (await import('./GamblingSection.vue')).default],
   ['OtherIncomeSection', async () => (await import('./OtherIncomeSection.vue')).default],
   ['SsBenefitsSection', async () => (await import('./SsBenefitsSection.vue')).default],
+  ['Form8995Section', async () => (await import('./Form8995Section.vue')).default],
+  ['EitcSection', async () => (await import('./EitcSection.vue')).default],
+  ['Schedule8812Section', async () => (await import('./Schedule8812Section.vue')).default],
 ];
 
 describe.each(SECTIONS)('%s all inputs + save', (_name, load) => {
@@ -149,6 +175,15 @@ describe.each(SECTIONS)('%s all inputs + save', (_name, load) => {
       await addBtn.trigger('click');
       await flush();
     }
+    // Some sections wrap rows in expansion panels — expand the first
+    // panel so the inner inputs and Remove button become reachable.
+    // Limit to 1 to keep test runtime bounded; the per-row v-model
+    // setters fire from a single panel just as well.
+    const panelTitles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
+    if (panelTitles.length > 0) {
+      await panelTitles[0].trigger('click');
+      await flush();
+    }
     // Fill every rendered input.
     for (const [i, input] of wrapper.findAll('input[type="number"]').entries()) {
       await input.setValue(String(10 + i));
@@ -157,7 +192,7 @@ describe.each(SECTIONS)('%s all inputs + save', (_name, load) => {
       await input.setValue(`v${i}`);
     }
     await flush();
-    // Click first Remove button.
+    // Click first Remove button (in panel content if panels were expanded).
     const removeBtn = wrapper.findAll('button').find((b) => /Remove/i.test(b.text()));
     if (removeBtn) {
       await removeBtn.trigger('click');
