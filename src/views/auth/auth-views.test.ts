@@ -197,6 +197,33 @@ describe('RegisterView', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(wrapper.html()).toMatch(/check your input/);
   });
+
+  it('verify email failure surfaces error message (step 2 catch block)', async () => {
+    // Exercises the `} catch (e: any) { error.value = e?.message || ... }`
+    // block inside the verify() step-2 handler.
+    const { wrapper } = mountInApp(RegisterView, {}, {
+      beforeMount: () => {
+        const auth = useAuthStore();
+        auth.register = vi.fn(async () => { /* noop */ }) as unknown as typeof auth.register;
+        auth.verifyEmail = vi.fn(async () => { throw new Error('bad code'); }) as unknown as typeof auth.verifyEmail;
+      },
+    });
+    // Step 1 submit.
+    const inputs = wrapper.findAll('input');
+    await inputs[0].setValue('alice');
+    await inputs[1].setValue('a@b.com');
+    await inputs[2].setValue('password123');
+    await inputs[3].setValue('password123');
+    await wrapper.find('form').trigger('submit.prevent');
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    // Step 2 verify.
+    const codeInput = wrapper.find('input');
+    await codeInput.setValue('123456');
+    await wrapper.find('form').trigger('submit.prevent');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/bad code|Verification failed/);
+  });
 });
 
 describe('TwoFactorView', () => {
@@ -256,6 +283,51 @@ describe('TwoFactorView', () => {
     await btn!.trigger('click');
     await new Promise((r) => setTimeout(r, 0));
     expect(wrapper.html()).toMatch(/boom|Could not/);
+  });
+
+  it('verify with unknown reason falls through to e.message', async () => {
+    // Exercises `map[reason] || e?.message || 'Verification failed.'`
+    // middle branch when reason isn't in the map but the error has a
+    // message.
+    const { wrapper } = mountInApp(TwoFactorView, {}, {
+      beforeMount: () => {
+        const auth = useAuthStore();
+        auth.verifyTwoFactor = vi.fn(async () => {
+          const e = new Error('custom server error') as Error & { body?: { reason?: string } };
+          e.body = { reason: 'some-unknown-reason' };
+          throw e;
+        }) as unknown as typeof auth.verifyTwoFactor;
+      },
+    });
+    await wrapper.find('form').trigger('submit.prevent');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/custom server error/);
+  });
+
+  it('verify with no reason and no message falls through to "Verification failed."', async () => {
+    // Exercises the final default `'Verification failed.'` branch.
+    const { wrapper } = mountInApp(TwoFactorView, {}, {
+      beforeMount: () => {
+        const auth = useAuthStore();
+        auth.verifyTwoFactor = vi.fn(async () => { throw new Error(''); }) as unknown as typeof auth.verifyTwoFactor;
+      },
+    });
+    await wrapper.find('form').trigger('submit.prevent');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/Verification failed/);
+  });
+
+  it('resend failure with no message falls through to "Could not send a new code."', async () => {
+    const { wrapper } = mountInApp(TwoFactorView, {}, {
+      beforeMount: () => {
+        const auth = useAuthStore();
+        auth.resendTwoFactor = vi.fn(async () => { throw new Error(''); }) as unknown as typeof auth.resendTwoFactor;
+      },
+    });
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('Resend'));
+    await btn!.trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.html()).toMatch(/Could not send/);
   });
 
   it('shows pending email in subtitle', () => {

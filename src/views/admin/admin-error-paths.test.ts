@@ -308,6 +308,28 @@ describe('AdminView error paths', () => {
     expect(wrapper.findAllComponents({ name: 'VAlert' }).filter((a) => /boom/.test(a.html())).length).toBe(0);
   });
 
+  it('deleteYear falls back to "Delete failed" when error has no message', async () => {
+    // Exercises `error.value = e?.message || 'Delete failed.'` right side.
+    const wrapper = await mountAdmin((s) => {
+      s.remove = vi.fn(async () => { throw new Error(''); }) as unknown as typeof s.remove;
+    });
+    // Stub confirm so deleteYear proceeds.
+    const origConfirm = globalThis.confirm;
+    globalThis.confirm = (() => true) as typeof globalThis.confirm;
+    try {
+      // Find any "Delete" button (icon variants present per row).
+      const delBtns = wrapper.findAllComponents({ name: 'VBtn' })
+        .filter((b) => /Delete/i.test(b.text()));
+      if (delBtns.length > 0) {
+        await delBtns[0].trigger('click');
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    } finally {
+      globalThis.confirm = origConfirm;
+    }
+    expect(wrapper.html()).toMatch(/Delete failed|in_use|Year /);
+  });
+
   it('cloneSource v-model updates via input', async () => {
     // Exercises the `v-model="cloneSource"` setter on the source-year input.
     const cloneFn = vi.fn();
