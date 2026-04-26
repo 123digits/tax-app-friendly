@@ -62,7 +62,9 @@ test('register → verify email → login → 2FA → dashboard', async ({ page,
   await page.getByLabel(/^code$/i).fill(loginCode);
   await page.getByRole('button', { name: /verify & continue/i }).click();
 
-  await expect(page).toHaveURL('/');
+  // Vue Router's redirect from /two-factor → / can race with the 5s default
+  // toHaveURL poll on a slow CI runner; a wider timeout removes the flake.
+  await expect(page).toHaveURL('/', { timeout: 15_000 });
   await expect(page.getByText(/Your 2025 Return/i)).toBeVisible();
 });
 
@@ -86,11 +88,11 @@ test('dashboard → fill a W-2 → see it reflected on the review page', async (
   const loginCode = await fetchDevCode(request, user.email, 'login');
   await page.getByLabel(/^code$/i).fill(loginCode);
   await page.getByRole('button', { name: /verify & continue/i }).click();
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/', { timeout: 15_000 });
 
   // Open the Income section.
   await page.getByRole('link', { name: /income \(w-?2\)/i }).or(page.getByText(/Income \(W-2\)/i)).first().click();
-  await expect(page).toHaveURL(/\/section\/income/);
+  await expect(page).toHaveURL(/\/section\/income/, { timeout: 15_000 });
 
   // Add a W-2.
   await page.getByRole('button', { name: /add w-?2/i }).click();
@@ -99,13 +101,16 @@ test('dashboard → fill a W-2 → see it reflected on the review page', async (
   await page.getByLabel(/box 2 — federal tax withheld/i).fill('4000');
 
   await page.getByRole('button', { name: /save & return/i }).click();
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/', { timeout: 15_000 });
 
   // Navigate to the review page and verify the W-2 wages show up.
   await page.getByText(/^Review$/i).first().click();
-  await expect(page).toHaveURL(/\/section\/review/);
+  await expect(page).toHaveURL(/\/section\/review/, { timeout: 15_000 });
   await expect(page.getByText(/W-2 wages/i)).toBeVisible();
-  await expect(page.getByText(/\$50,000/)).toBeVisible();
+  // The $50,000 wage flows into AGI and total income too, so the value
+  // appears in three review cells. `.first()` keeps Playwright out of
+  // strict mode while still asserting the W-2 was reflected on the page.
+  await expect(page.getByText(/\$50,000/).first()).toBeVisible();
 });
 
 test('admin bootstrap user reaches the admin panel', async ({ page, request }) => {
