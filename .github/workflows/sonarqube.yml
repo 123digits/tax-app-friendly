@@ -25,6 +25,11 @@ jobs:
   sonarqube:
     name: SonarQube analysis
     runs-on: ubuntu-latest
+    # Skip the job entirely when the Sonar secrets aren't configured.
+    # Without SONAR_HOST_URL the scanner aborts on a malformed-URL error
+    # ("Expected URL scheme 'http' or 'https' but no scheme was found"),
+    # so we'd rather no-op cleanly than fail every push to main.
+    if: ${{ secrets.SONAR_HOST_URL != '' && secrets.SONAR_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,7 +50,7 @@ jobs:
         run: npx vitest run --coverage
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v4
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -53,7 +58,7 @@ jobs:
       # Quality-gate check — fails the job if the Sonar quality gate fails
       # (coverage drop, new bugs, maintainability regression, etc.).
       - name: SonarQube Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@master
+        uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

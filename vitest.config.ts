@@ -50,7 +50,9 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'json-summary'],
+      // 'lcov' is what SonarQube reads via sonar.javascript.lcov.reportPaths;
+      // 'json-summary' powers the per-file CI summary script.
+      reporter: ['text', 'html', 'json-summary', 'lcov'],
       include: [
         'server/**/*.ts',
         'shared/**/*.ts',

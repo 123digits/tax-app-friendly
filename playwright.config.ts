@@ -1,3 +1,5 @@
+import path from 'node:path';
+import os from 'node:os';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -32,7 +34,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       PORT: '3100',
-      DATA_DIR: require('node:path').join(require('node:os').tmpdir(), 'tax-app-e2e'),
+      DATA_DIR: path.join(os.tmpdir(), 'tax-app-e2e'),
       NODE_ENV: 'development',
     },
   },

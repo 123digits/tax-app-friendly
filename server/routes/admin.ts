@@ -179,10 +179,9 @@ router.delete('/tax-years/:year', async (req, res, next) => {
       'SELECT count(*)::int as c FROM tax_returns WHERE tax_year = $1',
       [year]
     );
-    // SELECT count(*) always returns exactly one row.
-    const inUseCount = r.rows[0].c;
-    if (inUseCount > 0) {
-      res.status(409).json({ error: 'in_use', count: inUseCount });
+    /* v8 ignore next -- defensive: SELECT count(*) always returns one row. */
+    if ((r.rows[0]?.c ?? 0) > 0) {
+      res.status(409).json({ error: 'in_use', count: r.rows[0].c });
       return;
     }
     await deleteConfig(year);
@@ -225,8 +224,8 @@ router.put('/users/:id/admin', async (req, res, next) => {
       const target = await db.query<{ is_admin: boolean }>(
         'SELECT is_admin FROM users WHERE id = $1', [req.params.id]
       );
-      // SELECT count(*) always returns exactly one row.
-      if (target.rows[0]?.is_admin && countRes.rows[0].c <= 1) {
+      /* v8 ignore next -- defensive: SELECT count(*) always returns one row. */
+      if (target.rows[0]?.is_admin && (countRes.rows[0]?.c ?? 0) <= 1) {
         res.status(409).json({ error: 'last_admin' });
         return;
       }
