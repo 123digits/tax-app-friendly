@@ -179,6 +179,12 @@ async function save() {
 function cancel() {
   router.push('/admin');
 }
+
+// Expose internal helpers for unit tests so the cfg-null defensive
+// guards in addBracket / removeBracket / save can be exercised
+// (otherwise their early-return arms are unreachable from the DOM —
+// the buttons that call them only render when `cfg` is non-null).
+defineExpose({ addBracket, removeBracket, save, groupDrafts });
 </script>
 
 <template>

@@ -38,14 +38,16 @@ function parseOptionalInt(v: string): number | null {
   const t = v.trim();
   if (t === '') return null;
   const n = parseInt(t, 10);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
 }
 
 function parseOptionalNumber(v: string): number | null {
   const t = v.trim();
   if (t === '') return null;
   const n = Number(t);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
 }
 
 async function save() {
@@ -60,6 +62,8 @@ async function save() {
   await (taxStore as any).savePayload('schedule-8812', payload);
   router.push('/');
 }
+
+defineExpose({ parseOptionalInt, parseOptionalNumber });
 </script>
 
 <template>

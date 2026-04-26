@@ -144,8 +144,9 @@ async function touchReturn(returnId: string): Promise<void> {
 
 function num(v: unknown): number {
   if (v == null || v === '') return 0;
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : 0;
+  // PGlite hands numeric columns back as parseable strings; the result is
+  // always a finite number for the numeric/integer columns we read here.
+  return Number(v);
 }
 
 /**
@@ -972,7 +973,9 @@ router.put('/personal-info', async (req, res, next) => {
       'SELECT ssn_encrypted, spouse_ssn_encrypted FROM personal_info WHERE return_id = $1',
       [row.id]
     );
-    const prev = existing.rows[0] || {};
+    // getOrCreateReturn always seeds a personal_info row, so rows[0] is
+    // guaranteed present here.
+    const prev = existing.rows[0];
 
     const ssnEnc = body.ssn ? encryptField(body.ssn.replace(/\D/g, '')) : prev.ssn_encrypted ?? null;
     const ssnL4 = body.ssn ? last4(body.ssn) : undefined;

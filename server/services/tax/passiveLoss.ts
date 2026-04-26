@@ -146,13 +146,15 @@ export function applyPassiveLossLimits(
 
   for (const e of poolA) {
     if (e.effective < 0) {
-      const s = allocA.suspended.get(e.id) ?? 0;
+      // allocatePro populates an entry for every loss in `entries`, so
+      // `.get(id)` is guaranteed to find a value here.
+      const s = allocA.suspended.get(e.id) as number;
       if (s > 0) suspendedRental.push({ id: e.id, amount: s });
     }
   }
   for (const e of poolB) {
     if (e.effective < 0) {
-      const s = allocB.suspended.get(e.id) ?? 0;
+      const s = allocB.suspended.get(e.id) as number;
       if (s > 0) {
         const origKind = otherPassive.find((o) => o.id === e.id)?.kind ?? 'rental';
         if (origKind === 'rental') suspendedRental.push({ id: e.id, amount: s });

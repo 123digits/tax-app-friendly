@@ -72,15 +72,13 @@ export default defineConfig({
         'coverage/**',
         'node_modules/**',
       ],
-      // CI regression guards. These match the current floor at the time the
-      // thresholds were introduced; future PRs that drop below will fail
-      // `npm test -- --coverage`. Function % stays lax because v8 counts
-      // generated Vue render closures and lazy route imports as functions.
+      // CI regression guards. The suite hits 100% on every metric — drops
+      // below should fail `npm test -- --coverage` so we catch them early.
       thresholds: {
-        statements: 99.9,
-        branches: 98.5,
-        lines: 99.9,
-        functions: 99,
+        statements: 100,
+        branches: 100,
+        lines: 100,
+        functions: 100,
       },
     },
   },

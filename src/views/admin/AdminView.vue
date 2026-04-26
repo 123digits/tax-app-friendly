@@ -90,6 +90,12 @@ async function toggleAdmin(u: AdminUser) {
     }
   }
 }
+
+// Expose internal helpers for unit tests so the early-return guards in
+// createBlank / doClone can be exercised (otherwise they're unreachable
+// from the DOM — the Create / Clone buttons are :disabled while their
+// bound refs are falsy and Vuetify suppresses click on disabled buttons).
+defineExpose({ createBlank, doClone, deleteYear, toggleAdmin, newYear, cloneSource, cloneTarget });
 </script>
 
 <template>
