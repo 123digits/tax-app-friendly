@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    name: Lint, typecheck, build
+    name: Lint, typecheck, build, duplication
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +17,15 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      # `lint` runs eslint-plugin-sonarjs (the same rule set SonarQube's
+      # JS/TS analyzer uses) so SonarJS findings fail CI here.
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      # `dup` runs jscpd with the same block-tokenization SonarQube CPD
+      # uses; .jscpdrc.json's `threshold: 5` fails the job if the
+      # duplicated-line percentage crosses it.
+      - run: npm run dup
 
   test:
     name: Unit + integration (vitest)
