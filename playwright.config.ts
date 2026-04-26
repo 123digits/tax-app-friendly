@@ -28,13 +28,21 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run dev',
+    // `tsx server/index.ts` (no `watch`) — the dev `npm run dev` script
+    // runs `tsx watch`, which restarts the server on file events and
+    // makes pglite re-open the same data dir. PGlite only allows a
+    // single live instance per directory, so the second open crashes
+    // the WASM layer and mid-flight requests die with ECONNRESET.
+    // Running tsx without watch keeps the server stable for the suite.
+    command: 'npx tsx server/index.ts',
     url: 'http://127.0.0.1:3100/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
       PORT: '3100',
-      DATA_DIR: path.join(os.tmpdir(), 'tax-app-e2e'),
+      // Per-run fresh pglite directory so a previous failed run doesn't
+      // leave a half-written WASM heap behind.
+      DATA_DIR: path.join(os.tmpdir(), `tax-app-e2e-${process.pid}`),
       NODE_ENV: 'development',
     },
   },
